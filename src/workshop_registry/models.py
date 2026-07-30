@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from datetime import datetime
+from pathlib import Path
 from typing import Literal
 from urllib.parse import urlsplit
 
@@ -140,6 +141,65 @@ class Permission(StrictFrozenModel):
         if not normalized:
             raise ValueError("permission reason must not be blank")
         return normalized
+
+
+class Entrypoints(StrictFrozenModel):
+    ui: str
+
+    @field_validator("ui")
+    @classmethod
+    def entry_is_fixed(cls, value: str) -> str:
+        if value != "ui/index.html":
+            raise ValueError("UI entrypoint must be ui/index.html")
+        return value
+
+
+class WorkshopManifest(StrictFrozenModel):
+    manifest_version: Literal[1] = Field(alias="manifestVersion")
+    id: str = Field(min_length=3, max_length=128)
+    version: str
+    name: LocalizedText
+    description: LocalizedText
+    publisher: str = Field(min_length=1, max_length=200)
+    workshop_api: ApiRange = Field(alias="workshopApi")
+    lumina_version: LuminaRange = Field(alias="luminaVersion")
+    entrypoints: Entrypoints
+    permissions: tuple[Permission, ...] = Field(max_length=32)
+
+    @field_validator("id")
+    @classmethod
+    def module_id_is_safe(cls, value: str) -> str:
+        return _validate_module_id(value)
+
+    @field_validator("version")
+    @classmethod
+    def version_is_semver(cls, value: str) -> str:
+        return validate_semver(value)
+
+    @field_validator("publisher")
+    @classmethod
+    def publisher_is_not_blank(cls, value: str) -> str:
+        return _validate_publisher(value)
+
+    @model_validator(mode="after")
+    def permissions_are_unique(self) -> WorkshopManifest:
+        permission_names = [
+            permission.name for permission in self.permissions
+        ]
+        if len(permission_names) != len(set(permission_names)):
+            raise ValueError("manifest contains duplicate permissions")
+        return self
+
+
+class InspectedPackage(StrictFrozenModel):
+    archive_path: Path
+    manifest: WorkshopManifest
+    entry_html: str
+    compressed_bytes: int = Field(ge=0)
+    unpacked_bytes: int = Field(ge=0)
+    archive_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    manifest_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    member_names: tuple[str, ...]
 
 
 class Revocation(StrictFrozenModel):
@@ -344,4 +404,3 @@ class RegistryIndex(StrictFrozenModel):
         if len(module_ids) != len(set(module_ids)):
             raise ValueError("duplicate module id in Registry")
         return self
-
