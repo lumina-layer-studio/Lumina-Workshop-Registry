@@ -174,6 +174,32 @@ def test_redirect_outside_github_asset_hosts_is_rejected(
 
 
 @respx.mock
+def test_release_assets_github_blob_redirect_is_allowed(
+    tmp_path: Path,
+) -> None:
+    destination = tmp_path / ASSET_NAME
+    redirected_url = (
+        "https://release-assets.githubusercontent.com/"
+        "github-production-release-asset/123/asset"
+        "?sp=r&sv=2018-11-09&sig=temporary"
+    )
+    respx.get(ASSET_URL).mock(
+        return_value=httpx.Response(
+            302,
+            headers={"Location": redirected_url},
+        )
+    )
+    respx.get(redirected_url).mock(
+        return_value=httpx.Response(200, content=b"verified")
+    )
+
+    downloaded = download_release_asset(ASSET_URL, destination)
+
+    assert downloaded.size == len(b"verified")
+    assert destination.read_bytes() == b"verified"
+
+
+@respx.mock
 def test_stream_limit_deletes_partial_file(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -280,4 +306,3 @@ def test_network_timeout_is_fail_closed(tmp_path: Path) -> None:
     with pytest.raises(ReleaseInspectionError, match="timed out"):
         download_release_asset(ASSET_URL, destination)
     assert not destination.exists()
-

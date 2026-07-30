@@ -28,6 +28,7 @@ ALLOWED_ASSET_HOSTS = frozenset(
     {
         "github.com",
         "objects.githubusercontent.com",
+        "release-assets.githubusercontent.com",
     }
 )
 
