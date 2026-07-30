@@ -1,0 +1,78 @@
+name: Scan Registered Releases
+
+on:
+  schedule:
+    - cron: "23 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: src
+    steps:
+      - name: Check out reviewed sources
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.lock
+
+      - name: Install the hash-locked graph
+        run: python -m pip install --require-hashes -r requirements.lock
+
+      - name: Re-run the complete source gate
+        run: |
+          ruff check src scripts tests
+          python -m pytest tests -v
+          python scripts/validate_sources.py
+
+      - name: Inspect newly published stable Releases
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python scripts/scan_releases.py --modules modules
+
+      - name: Detect append-only source changes
+        id: changes
+        run: |
+          if git diff --quiet -- modules; then
+            echo "changed=false" >> "${GITHUB_OUTPUT}"
+          else
+            echo "changed=true" >> "${GITHUB_OUTPUT}"
+          fi
+
+      - name: Validate generated source changes
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          python scripts/check_ownership_diff.py \
+            --base-dir modules \
+            --head-dir modules
+          python scripts/validate_sources.py
+
+      - name: Push one review branch and open a PR
+        if: steps.changes.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          branch="automation/workshop-release-scan-${GITHUB_RUN_ID}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "${branch}"
+          git add modules
+          git commit -m "chore(registry): register newly published modules"
+          git push --set-upstream origin "${branch}"
+          gh pr create \
+            --base main \
+            --head "${branch}" \
+            --title "chore: review newly published Workshop releases" \
+            --body "Automated append-only candidates. Maintainer review is required; this workflow never merges."
+
