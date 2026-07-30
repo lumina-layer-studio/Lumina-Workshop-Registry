@@ -6,5 +6,6 @@ __pycache__/
 dist/*
 !dist/.gitignore
 pages/
+keys/*.pem
+keys/*.private.*
 .DS_Store
-

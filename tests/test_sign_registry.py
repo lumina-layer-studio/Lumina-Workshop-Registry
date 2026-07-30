@@ -12,9 +12,11 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import (
 )
 
 from workshop_registry.signing import (
+    PRODUCTION_KEY_ID,
     SigningError,
     generate_signing_key,
     load_private_key,
+    load_public_key_record,
     sign_index,
     verify_detached_signature,
 )
@@ -123,3 +125,10 @@ def test_malformed_or_non_ed25519_private_pem_is_rejected() -> None:
     with pytest.raises(SigningError, match="private key"):
         load_private_key(b"not a pem")
 
+
+def test_committed_production_public_key_is_strict_and_loadable() -> None:
+    key_id, _public_key = load_public_key_record(
+        Path("keys/registry-2026-01.public.json").read_bytes()
+    )
+
+    assert key_id == PRODUCTION_KEY_ID
