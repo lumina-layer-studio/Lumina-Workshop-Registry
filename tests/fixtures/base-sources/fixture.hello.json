@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "fixture.hello",
+  "repository": "https://github.com/example/fixture-hello",
+  "official": false,
+  "publisher": "Fixture Publisher",
+  "versions": [
+    {
+      "version": "1.0.0",
+      "releaseTag": "v1.0.0",
+      "assetName": "fixture.hello-1.0.0.lumina-workshop",
+      "assetBytes": 1000,
+      "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "manifestSha256": "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+      "workshopApi": {
+        "min": "1.0.0",
+        "maxExclusive": "2.0.0"
+      },
+      "luminaVersion": {
+        "min": "2.0.0"
+      },
+      "permissions": [
+        {
+          "name": "image.pick",
+          "reason": "Pick one fixture image"
+        }
+      ],
+      "state": "active",
+      "revocation": null
+    },
+    {
+      "version": "1.1.0",
+      "releaseTag": "v1.1.0",
+      "assetName": "fixture.hello-1.1.0.lumina-workshop",
+      "assetBytes": 1100,
+      "sha256": "123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0",
+      "manifestSha256": "bcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789a",
+      "workshopApi": {
+        "min": "1.0.0",
+        "maxExclusive": "2.0.0"
+      },
+      "luminaVersion": {
+        "min": "2.0.0"
+      },
+      "permissions": [
+        {
+          "name": "image.pick",
+          "reason": "Pick one fixture image"
+        }
+      ],
+      "state": "active",
+      "revocation": null
+    }
+  ]
+}
+
