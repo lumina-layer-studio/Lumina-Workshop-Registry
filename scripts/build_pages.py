@@ -6,6 +6,14 @@ import argparse
 import shutil
 from pathlib import Path
 
+PAGE_FILENAMES = frozenset(
+    {
+        "index.html",
+        "registry-v1.json",
+        "registry-v1.sig",
+    }
+)
+
 INDEX_HTML = """<!doctype html>
 <html lang="en">
 <head><meta charset="utf-8"><title>Lumina Workshop Registry</title></head>
@@ -29,9 +37,26 @@ def build_pages(
 ) -> None:
     """Create exactly the public index, signature, and minimal HTML page."""
 
+    if output.is_symlink():
+        raise ValueError("Pages output must not be a symlink")
     if output.exists():
-        shutil.rmtree(output)
-    output.mkdir(parents=True)
+        if not output.is_dir():
+            raise ValueError("Pages output must be a directory")
+        existing = tuple(output.iterdir())
+        unknown = sorted(
+            path.name for path in existing if path.name not in PAGE_FILENAMES
+        )
+        if unknown:
+            raise ValueError(
+                "Pages output contains unknown content: "
+                + ", ".join(unknown)
+            )
+        for path in existing:
+            if not path.is_file() or path.is_symlink():
+                raise ValueError("generated Pages entries must be regular files")
+            path.unlink()
+    else:
+        output.mkdir(parents=True)
     shutil.copyfile(index, output / "registry-v1.json")
     shutil.copyfile(signature, output / "registry-v1.sig")
     (output / "index.html").write_text(
@@ -59,4 +84,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

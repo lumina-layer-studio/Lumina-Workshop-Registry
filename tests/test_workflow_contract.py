@@ -100,6 +100,9 @@ def test_scanner_can_only_open_a_reviewable_source_pr() -> None:
     assert "gh pr merge" not in text
     assert "REGISTRY_ED25519_PRIVATE_KEY" not in text
     assert "deploy-pages" not in text
+    assert '"${RUNNER_TEMP}/registry-base/modules"' in text
+    assert "--base-dir modules" not in text
+    assert "scripts/validate_new_releases.py" in text
 
 
 def test_publish_only_signs_protected_main() -> None:
@@ -125,4 +128,3 @@ def test_publish_only_signs_protected_main() -> None:
     assert "pages/index.html" in text
     assert "actions/upload-pages-artifact@" in text
     assert "actions/deploy-pages@" in text
-

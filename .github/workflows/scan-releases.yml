@@ -36,6 +36,11 @@ jobs:
           python -m pytest tests -v
           python scripts/validate_sources.py
 
+      - name: Snapshot reviewed source state
+        run: |
+          mkdir -p "${RUNNER_TEMP}/registry-base"
+          cp -R modules "${RUNNER_TEMP}/registry-base/modules"
+
       - name: Inspect newly published stable Releases
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -54,9 +59,12 @@ jobs:
         if: steps.changes.outputs.changed == 'true'
         run: |
           python scripts/check_ownership_diff.py \
-            --base-dir modules \
+            --base-dir "${RUNNER_TEMP}/registry-base/modules" \
             --head-dir modules
           python scripts/validate_sources.py
+          python scripts/validate_new_releases.py \
+            --base-dir "${RUNNER_TEMP}/registry-base/modules" \
+            --head-dir modules
 
       - name: Push one review branch and open a PR
         if: steps.changes.outputs.changed == 'true'
@@ -75,4 +83,3 @@ jobs:
             --head "${branch}" \
             --title "chore: review newly published Workshop releases" \
             --body "Automated append-only candidates. Maintainer review is required; this workflow never merges."
-

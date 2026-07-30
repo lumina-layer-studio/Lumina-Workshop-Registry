@@ -9,7 +9,12 @@ from urllib.parse import urlsplit
 
 import httpx
 
-from workshop_registry.models import ModuleSource, compare_semver, validate_semver
+from workshop_registry.models import (
+    ModuleSource,
+    compare_semver,
+    semver_sort_key,
+    validate_semver,
+)
 from workshop_registry.release import inspect_release
 from workshop_registry.source_update import (
     append_candidate,
@@ -53,14 +58,13 @@ def _stable_release_tags(
             version = validate_semver(tag[1:])
         except ValueError:
             continue
+        # Automated discovery only handles unambiguous stable releases.
+        # Pre-release and build-qualified versions require explicit review.
+        if "-" in version or "+" in version:
+            continue
         if version not in existing:
             candidates.append(version)
-    candidates.sort(
-        key=lambda value: (
-            tuple(int(part) for part in value.split("-", 1)[0].split(".")),
-            value,
-        )
-    )
+    candidates.sort(key=semver_sort_key)
     return tuple(f"v{version}" for version in candidates)
 
 
