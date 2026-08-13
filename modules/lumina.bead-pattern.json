@@ -39,6 +39,41 @@
         "maxExclusive": "2.0.0",
         "min": "1.0.0"
       }
+    },
+    {
+      "assetBytes": 353626,
+      "assetName": "lumina.bead-pattern-1.0.8.lumina-workshop",
+      "luminaVersion": {
+        "min": "2.0.0"
+      },
+      "manifestSha256": "02d680ff1b1bd972e3af0844dd762f8c94a363010cff2a9357c878a03476287c",
+      "permissions": [
+        {
+          "name": "image.pick",
+          "reason": "选择并读取拼豆图纸或截图"
+        },
+        {
+          "name": "project.storage",
+          "reason": "保存可继续编辑的拼豆工程"
+        },
+        {
+          "name": "color-library.read",
+          "reason": "预览当前 LUT 或耗材档案色库"
+        },
+        {
+          "name": "handoff.image",
+          "reason": "将确认后的源色 SVG 与兼容 PNG 交给 Lumina 转换"
+        }
+      ],
+      "releaseTag": "v1.0.8",
+      "revocation": null,
+      "sha256": "856a50dea3a3b6fde4d30e52d4e7e23aa9ffd0582a85ae5acd1cec1c8713baae",
+      "state": "active",
+      "version": "1.0.8",
+      "workshopApi": {
+        "maxExclusive": "2.0.0",
+        "min": "1.0.0"
+      }
     }
   ]
 }
