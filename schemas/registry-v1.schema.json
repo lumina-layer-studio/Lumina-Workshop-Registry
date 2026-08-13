@@ -1,0 +1,286 @@
+{
+  "$defs": {
+    "ApiRange": {
+      "additionalProperties": false,
+      "properties": {
+        "maxExclusive": {
+          "title": "Maxexclusive",
+          "type": "string"
+        },
+        "min": {
+          "title": "Min",
+          "type": "string"
+        }
+      },
+      "required": [
+        "min",
+        "maxExclusive"
+      ],
+      "title": "ApiRange",
+      "type": "object"
+    },
+    "LocalizedText": {
+      "additionalProperties": false,
+      "properties": {
+        "en-US": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "En-Us",
+          "type": "string"
+        },
+        "zh-CN": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Zh-Cn",
+          "type": "string"
+        }
+      },
+      "required": [
+        "zh-CN",
+        "en-US"
+      ],
+      "title": "LocalizedText",
+      "type": "object"
+    },
+    "LuminaRange": {
+      "additionalProperties": false,
+      "properties": {
+        "min": {
+          "title": "Min",
+          "type": "string"
+        }
+      },
+      "required": [
+        "min"
+      ],
+      "title": "LuminaRange",
+      "type": "object"
+    },
+    "Permission": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "reason": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "reason"
+      ],
+      "title": "Permission",
+      "type": "object"
+    },
+    "RegistryModule": {
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "$ref": "#/$defs/LocalizedText"
+        },
+        "moduleId": {
+          "maxLength": 128,
+          "minLength": 3,
+          "title": "Moduleid",
+          "type": "string"
+        },
+        "name": {
+          "$ref": "#/$defs/LocalizedText"
+        },
+        "official": {
+          "title": "Official",
+          "type": "boolean"
+        },
+        "publisher": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Publisher",
+          "type": "string"
+        },
+        "repository": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Repository",
+          "type": "string"
+        },
+        "versions": {
+          "items": {
+            "$ref": "#/$defs/RegistryVersion"
+          },
+          "maxItems": 100,
+          "minItems": 1,
+          "title": "Versions",
+          "type": "array"
+        }
+      },
+      "required": [
+        "moduleId",
+        "repository",
+        "official",
+        "publisher",
+        "name",
+        "description",
+        "versions"
+      ],
+      "title": "RegistryModule",
+      "type": "object"
+    },
+    "RegistryVersion": {
+      "additionalProperties": false,
+      "properties": {
+        "assetBytes": {
+          "exclusiveMinimum": 0,
+          "maximum": 104857600,
+          "title": "Assetbytes",
+          "type": "integer"
+        },
+        "assetName": {
+          "maxLength": 240,
+          "minLength": 1,
+          "title": "Assetname",
+          "type": "string"
+        },
+        "downloadUrl": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Downloadurl",
+          "type": "string"
+        },
+        "luminaVersion": {
+          "$ref": "#/$defs/LuminaRange"
+        },
+        "manifestSha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Manifestsha256",
+          "type": "string"
+        },
+        "permissions": {
+          "items": {
+            "$ref": "#/$defs/Permission"
+          },
+          "maxItems": 32,
+          "title": "Permissions",
+          "type": "array"
+        },
+        "releaseTag": {
+          "maxLength": 160,
+          "minLength": 2,
+          "title": "Releasetag",
+          "type": "string"
+        },
+        "revocation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Revocation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "active",
+            "deprecated",
+            "blocked"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        },
+        "workshopApi": {
+          "$ref": "#/$defs/ApiRange"
+        }
+      },
+      "required": [
+        "version",
+        "releaseTag",
+        "assetName",
+        "assetBytes",
+        "sha256",
+        "manifestSha256",
+        "workshopApi",
+        "luminaVersion",
+        "permissions",
+        "state",
+        "revocation",
+        "downloadUrl"
+      ],
+      "title": "RegistryVersion",
+      "type": "object"
+    },
+    "Revocation": {
+      "additionalProperties": false,
+      "properties": {
+        "message": {
+          "$ref": "#/$defs/LocalizedText"
+        },
+        "reasonCode": {
+          "maxLength": 80,
+          "minLength": 2,
+          "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+          "title": "Reasoncode",
+          "type": "string"
+        },
+        "severity": {
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "critical"
+          ],
+          "title": "Severity",
+          "type": "string"
+        }
+      },
+      "required": [
+        "reasonCode",
+        "severity",
+        "message"
+      ],
+      "title": "Revocation",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "generatedAt": {
+      "format": "date-time",
+      "title": "Generatedat",
+      "type": "string"
+    },
+    "modules": {
+      "items": {
+        "$ref": "#/$defs/RegistryModule"
+      },
+      "maxItems": 5000,
+      "title": "Modules",
+      "type": "array"
+    },
+    "schemaVersion": {
+      "const": 1,
+      "title": "Schemaversion",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "generatedAt",
+    "modules"
+  ],
+  "title": "RegistryIndex",
+  "type": "object"
+}

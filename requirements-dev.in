@@ -1,0 +1,7 @@
+-r requirements.in
+pip-tools==7.5.1
+pytest>=8.4,<9
+PyYAML>=6.0,<7
+respx>=0.22,<1
+ruff>=0.12,<1
+

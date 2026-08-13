@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.pyc
+dist/*
+!dist/.gitignore
+pages/
+keys/*.pem
+keys/*.private.*
+.DS_Store
