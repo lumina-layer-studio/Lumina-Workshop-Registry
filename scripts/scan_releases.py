@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import os
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -15,7 +14,7 @@ from workshop_registry.models import (
     semver_sort_key,
     validate_semver,
 )
-from workshop_registry.release import inspect_release
+from workshop_registry.release import fetch_github_api_json, inspect_release
 from workshop_registry.source_update import (
     append_candidate,
     candidate_from_release,
@@ -30,15 +29,13 @@ def _stable_release_tags(
     path_parts = tuple(
         part for part in urlsplit(source.repository).path.split("/") if part
     )
-    response = client.get(
+    payload = fetch_github_api_json(
+        client,
         (
             f"https://api.github.com/repos/{path_parts[0]}/"
-            f"{path_parts[1]}/releases"
+            f"{path_parts[1]}/releases?per_page=100"
         ),
-        params={"per_page": 100},
     )
-    response.raise_for_status()
-    payload = response.json()
     if not isinstance(payload, list):
         raise ValueError("GitHub releases response must be an array")
 
@@ -76,9 +73,6 @@ def scan(modules_directory: Path) -> int:
         "User-Agent": "Lumina-Workshop-Registry-Scanner/1",
         "X-GitHub-Api-Version": "2022-11-28",
     }
-    token = os.environ.get("GITHUB_TOKEN")
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
     appended = 0
     with httpx.Client(
         timeout=httpx.Timeout(60.0, connect=15.0),

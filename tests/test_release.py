@@ -101,6 +101,118 @@ def test_release_inspection_pins_actual_bytes(tmp_path: Path) -> None:
     assert inspected.package.manifest.name.en_us == "Fixture module"
 
 
+@respx.mock
+def test_inspection_authenticates_only_api_requests(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("GITHUB_TOKEN", "fixture-api-token")
+    payload = package_bytes(tmp_path)
+    api_redirect = "https://api.github.com/repositories/123/releases/tags/v1.0.0"
+    respx.get(API_URL).respond(301, headers={"Location": api_redirect})
+    respx.get(api_redirect).respond(200, json=release_response())
+    blob_url = "https://release-assets.githubusercontent.com/fixture/asset"
+    respx.get(ASSET_URL).respond(302, headers={"Location": blob_url})
+    respx.get(blob_url).respond(200, content=payload)
+
+    inspect_release(
+        repository=REPOSITORY,
+        tag="v1.0.0",
+        expected_module_id="fixture.hello",
+    )
+
+    for call in respx.calls:
+        if call.request.url.host == "api.github.com":
+            assert (
+                call.request.headers.get("Authorization") == "Bearer fixture-api-token"
+            )
+        else:
+            assert "Authorization" not in call.request.headers
+
+
+@respx.mock
+def test_public_download_strips_client_authorization(tmp_path: Path) -> None:
+    payload = package_bytes(tmp_path)
+    blob_url = "https://release-assets.githubusercontent.com/fixture/asset"
+    respx.get(ASSET_URL).respond(302, headers={"Location": blob_url})
+    respx.get(blob_url).respond(200, content=payload)
+
+    with httpx.Client(
+        headers={"Authorization": "Bearer fixture-client-token"}
+    ) as client:
+        download_release_asset(
+            ASSET_URL, tmp_path / "download.lumina-workshop", client=client
+        )
+
+    assert all("Authorization" not in call.request.headers for call in respx.calls)
+
+
+@respx.mock
+def test_transferred_repository_keeps_reviewed_release_identity(
+    tmp_path: Path,
+) -> None:
+    payload = package_bytes(tmp_path)
+    canonical_repository = "https://github.com/new-owner/fixture-hello"
+    canonical_asset = (
+        f"{canonical_repository}/releases/download/v1.0.0/{ASSET_NAME}"
+    )
+    metadata = release_response()
+    metadata["assets"][0]["browser_download_url"] = canonical_asset
+    respx.get(API_URL).respond(
+        301,
+        headers={
+            "Location": "https://api.github.com/repositories/123/releases/tags/v1.0.0"
+        },
+    )
+    respx.get("https://api.github.com/repositories/123/releases/tags/v1.0.0").respond(
+        200, json=metadata
+    )
+    respx.get("https://api.github.com/repos/example/fixture-hello").respond(
+        301, headers={"Location": "https://api.github.com/repositories/123"}
+    )
+    respx.get("https://api.github.com/repositories/123").respond(
+        200,
+        json={
+            "id": 123,
+            "full_name": "new-owner/fixture-hello",
+            "html_url": canonical_repository,
+        },
+    )
+    respx.get(ASSET_URL).respond(302, headers={"Location": canonical_asset})
+    asset_route = respx.get(canonical_asset).respond(200, content=payload)
+
+    inspected = inspect_release(
+        repository=REPOSITORY,
+        tag="v1.0.0",
+        expected_module_id="fixture.hello",
+    )
+
+    assert inspected.repository == REPOSITORY
+    assert inspected.download_url == ASSET_URL
+    assert inspected.sha256 == hashlib.sha256(payload).hexdigest()
+    assert asset_route.call_count == 2
+
+
+@respx.mock
+def test_transfer_does_not_allow_unrelated_repository_asset() -> None:
+    metadata = release_response()
+    metadata["assets"][0]["browser_download_url"] = (
+        f"https://github.com/attacker/repository/releases/download/v1.0.0/{ASSET_NAME}"
+    )
+    respx.get(API_URL).respond(200, json=metadata)
+    respx.get("https://api.github.com/repos/example/fixture-hello").respond(
+        200,
+        json={"id": 123, "full_name": "example/fixture-hello", "html_url": REPOSITORY},
+    )
+
+    with pytest.raises(ReleaseInspectionError, match="release identity"):
+        inspect_release(
+            repository=REPOSITORY,
+            tag="v1.0.0",
+            expected_module_id="fixture.hello",
+        )
+
+
 @pytest.mark.parametrize(
     ("field", "message"),
     [
