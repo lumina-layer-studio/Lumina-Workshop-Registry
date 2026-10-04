@@ -13,6 +13,22 @@ normal PR path. It requires evidence from both owners, an incident/transfer
 record, CODEOWNER review, and a separately announced Lumina trust update.
 The v1 tooling rejects all normal-PR transfer flags.
 
+### GitHub URL redirects
+
+GitHub may redirect a reviewed repository URL after a rename or transfer.
+Scanning and release inspection follow bounded redirects inside the HTTPS
+GitHub API. A changed asset URL is accepted only after repository metadata
+requested through the registered address confirms the current canonical
+repository and a valid numeric repository ID. Downloads still use the
+registered release identity, are fetched twice, and retain exact byte/digest
+and manifest checks.
+
+Routing does not rewrite source records, publisher/official status, or signed
+history, and does not authorize an ownership or trust change. Newly discovered
+versions remain proposals requiring the existing maintainer review, signing,
+and publication controls. An actual trust transfer still follows the
+exceptional process above.
+
 ## New versions
 
 Every added version must point to one non-draft, non-prerelease tag and one
@@ -39,4 +55,3 @@ Protected `main` requires passing CI, CODEOWNER approval for `modules/`,
 `schemas/`, and `.github/`, and dismissal of stale approvals. The
 `registry-production` Environment requires a reviewer and alone holds the
 signing secret. Pull-request and scanner jobs never receive that secret.
-

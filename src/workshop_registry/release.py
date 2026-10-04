@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import tempfile
 import time
@@ -253,27 +254,72 @@ def _files_equal(first: Path, second: Path) -> bool:
                 return True
 
 
-def _release_metadata(
-    client: httpx.Client,
-    *,
-    owner: str,
-    repository_name: str,
-    tag: str,
-) -> dict:
-    url = (
-        f"https://api.github.com/repos/{owner}/{repository_name}"
-        f"/releases/tags/{tag}"
-    )
-    try:
-        response = client.get(
-            url,
-            headers={
-                "Accept": "application/vnd.github+json",
-                "User-Agent": "Lumina-Workshop-Registry/1",
-                "X-GitHub-Api-Version": "2022-11-28",
-            },
-            follow_redirects=False,
+def _validate_api_url(url: str) -> str:
+    parsed = urlsplit(url)
+    if (
+        parsed.scheme != "https"
+        or parsed.netloc != "api.github.com"
+        or parsed.fragment
+    ):
+        raise ReleaseInspectionError(
+            "metadata redirect must remain inside the HTTPS GitHub API"
         )
+    return url
+
+
+def fetch_github_api_json(
+    client: httpx.Client,
+    url: str,
+) -> object:
+    """Read bounded API JSON while following GitHub repository redirects.
+
+    读取有大小限制的 API JSON 并仅跟随 GitHub 仓库迁移跳转。
+    """
+
+    current_url = _validate_api_url(url)
+    try:
+        for redirect_count in range(MAX_REDIRECTS + 1):
+            request = client.build_request(
+                "GET",
+                current_url,
+                headers={
+                    "Accept": "application/vnd.github+json",
+                    "User-Agent": "Lumina-Workshop-Registry/1",
+                    "X-GitHub-Api-Version": "2022-11-28",
+                },
+            )
+            with closing(
+                client.send(request, stream=True, follow_redirects=False)
+            ) as response:
+                if response.status_code in {301, 302, 303, 307, 308}:
+                    if redirect_count >= MAX_REDIRECTS:
+                        raise ReleaseInspectionError(
+                            "GitHub API metadata redirected too many times"
+                        )
+                    location = response.headers.get("Location")
+                    if not location:
+                        raise ReleaseInspectionError(
+                            "GitHub API metadata redirect is missing Location"
+                        )
+                    current_url = _validate_api_url(
+                        urljoin(current_url, location)
+                    )
+                    continue
+                if response.status_code != 200:
+                    raise ReleaseInspectionError(
+                        "GitHub Release metadata request failed with status "
+                        f"{response.status_code}"
+                    )
+                chunks: list[bytes] = []
+                received = 0
+                for chunk in response.iter_bytes():
+                    received += len(chunk)
+                    if received > MAX_RELEASE_METADATA_BYTES:
+                        raise ReleaseInspectionError(
+                            "GitHub Release metadata exceeds size limit"
+                        )
+                    chunks.append(chunk)
+                break
     except httpx.TimeoutException as exc:
         raise ReleaseInspectionError(
             "GitHub Release metadata request timed out"
@@ -282,26 +328,47 @@ def _release_metadata(
         raise ReleaseInspectionError(
             "GitHub Release metadata request failed"
         ) from exc
-    if response.status_code != 200:
-        raise ReleaseInspectionError(
-            "GitHub Release metadata request failed with status "
-            f"{response.status_code}"
-        )
-    if len(response.content) > MAX_RELEASE_METADATA_BYTES:
-        raise ReleaseInspectionError(
-            "GitHub Release metadata exceeds size limit"
-        )
     try:
-        value = response.json()
+        return json.loads(b"".join(chunks))
     except ValueError as exc:
         raise ReleaseInspectionError(
             "GitHub Release metadata is not valid JSON"
         ) from exc
+
+
+def _api_object(client: httpx.Client, url: str) -> dict:
+    value = fetch_github_api_json(client, url)
     if not isinstance(value, dict):
         raise ReleaseInspectionError(
             "GitHub Release metadata root must be an object"
         )
     return value
+
+
+def _canonical_repository_url(
+    client: httpx.Client,
+    repository: str,
+) -> str:
+    owner, name = _validate_repository(repository)
+    metadata = _api_object(
+        client, f"https://api.github.com/repos/{owner}/{name}"
+    )
+    repository_id = metadata.get("id")
+    full_name = metadata.get("full_name")
+    canonical_url = metadata.get("html_url")
+    if (
+        not isinstance(repository_id, int)
+        or isinstance(repository_id, bool)
+        or repository_id <= 0
+        or not isinstance(full_name, str)
+        or not isinstance(canonical_url, str)
+        or canonical_url != f"https://github.com/{full_name}"
+    ):
+        raise ReleaseInspectionError(
+            "release asset URL does not match release identity"
+        )
+    _validate_repository(canonical_url)
+    return canonical_url
 
 
 def inspect_release(
@@ -331,11 +398,10 @@ def inspect_release(
     )
 
     def perform(active_client: httpx.Client) -> InspectedRelease:
-        metadata = _release_metadata(
+        metadata = _api_object(
             active_client,
-            owner=owner,
-            repository_name=repository_name,
-            tag=tag,
+            f"https://api.github.com/repos/{owner}/{repository_name}"
+            f"/releases/tags/{tag}",
         )
         if metadata.get("tag_name") != tag:
             raise ReleaseInspectionError(
@@ -363,9 +429,17 @@ def inspect_release(
                 "release must contain exactly one expected module asset"
             )
         if matches[0].get("browser_download_url") != download_url:
-            raise ReleaseInspectionError(
-                "release asset URL does not match release identity"
+            canonical_repository = _canonical_repository_url(
+                active_client, repository
             )
+            canonical_asset = (
+                f"{canonical_repository}/releases/download/"
+                f"{tag}/{expected_asset_name}"
+            )
+            if matches[0].get("browser_download_url") != canonical_asset:
+                raise ReleaseInspectionError(
+                    "release asset URL does not match release identity"
+                )
 
         with tempfile.TemporaryDirectory(
             prefix="lumina-registry-release-"
