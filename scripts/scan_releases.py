@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import os
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -74,9 +73,6 @@ def scan(modules_directory: Path) -> int:
         "User-Agent": "Lumina-Workshop-Registry-Scanner/1",
         "X-GitHub-Api-Version": "2022-11-28",
     }
-    token = os.environ.get("GITHUB_TOKEN")
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
     appended = 0
     with httpx.Client(
         timeout=httpx.Timeout(60.0, connect=15.0),

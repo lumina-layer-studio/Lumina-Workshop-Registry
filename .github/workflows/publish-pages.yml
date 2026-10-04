@@ -41,6 +41,8 @@ jobs:
           python scripts/validate_sources.py
 
       - name: Build exact index bytes
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           generated_at="$(git show -s --format=%cI HEAD)"
           python scripts/build_registry.py \
@@ -102,4 +104,3 @@ jobs:
             --index /tmp/deployed-registry-v1.json \
             --signature /tmp/deployed-registry-v1.sig \
             --public-key keys/registry-2026-01.public.json
-

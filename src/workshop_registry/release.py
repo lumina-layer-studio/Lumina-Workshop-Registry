@@ -146,6 +146,7 @@ def _download_with_client(
                         "User-Agent": "Lumina-Workshop-Registry/1",
                     },
                 )
+                request.headers.pop("Authorization", None)
                 response_context = client.send(
                     request,
                     stream=True,
@@ -273,20 +274,27 @@ def fetch_github_api_json(
 ) -> object:
     """Read bounded API JSON while following GitHub repository redirects.
 
+    Optional GITHUB_TOKEN authenticates only validated GitHub API requests.
+
     读取有大小限制的 API JSON 并仅跟随 GitHub 仓库迁移跳转。
+    可选 GITHUB_TOKEN 只用于已验证的 GitHub API 请求。
     """
 
     current_url = _validate_api_url(url)
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "Lumina-Workshop-Registry/1",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    token = os.environ.get("GITHUB_TOKEN")
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
     try:
         for redirect_count in range(MAX_REDIRECTS + 1):
             request = client.build_request(
                 "GET",
                 current_url,
-                headers={
-                    "Accept": "application/vnd.github+json",
-                    "User-Agent": "Lumina-Workshop-Registry/1",
-                    "X-GitHub-Api-Version": "2022-11-28",
-                },
+                headers=headers,
             )
             with closing(
                 client.send(request, stream=True, follow_redirects=False)

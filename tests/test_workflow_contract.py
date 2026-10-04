@@ -128,3 +128,30 @@ def test_publish_only_signs_protected_main() -> None:
     assert "pages/index.html" in text
     assert "actions/upload-pages-artifact@" in text
     assert "actions/deploy-pages@" in text
+
+
+@pytest.mark.parametrize(
+    ("filename", "job_name"),
+    [
+        ("pull-request.yml", "validate"),
+        ("publish-pages.yml", "publish"),
+        ("scan-releases.yml", "scan"),
+    ],
+)
+def test_live_release_checks_receive_the_github_api_token(
+    filename: str,
+    job_name: str,
+) -> None:
+    _text, parsed = workflow(filename)
+    job = parsed["jobs"][job_name]
+    for step in job["steps"]:
+        command = step.get("run", "")
+        if any(
+            script in command
+            for script in [
+                "scripts/build_registry.py",
+                "scripts/validate_new_releases.py",
+                "scripts/scan_releases.py",
+            ]
+        ):
+            assert step.get("env", {}).get("GITHUB_TOKEN") == "${{ github.token }}"

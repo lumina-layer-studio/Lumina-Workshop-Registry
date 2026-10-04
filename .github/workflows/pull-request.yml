@@ -46,6 +46,8 @@ jobs:
           fi
 
       - name: Protect ownership and re-inspect new Releases
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           python scripts/check_ownership_diff.py \
             --base-dir "${RUNNER_TEMP}/registry-base/modules" \
@@ -57,6 +59,7 @@ jobs:
       - name: Build identical unsigned candidates twice
         env:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           generated_at="$(git show -s --format=%cI "${HEAD_SHA}")"
           python scripts/build_registry.py \
@@ -77,4 +80,3 @@ jobs:
           name: candidate-registry-v1
           path: dist/candidate-registry-v1.json
           if-no-files-found: error
-
