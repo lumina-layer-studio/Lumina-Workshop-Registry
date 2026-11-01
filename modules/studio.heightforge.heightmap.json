@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "studio.heightforge.heightmap",
+  "repository": "https://github.com/xueseyinlang-cmyk/LUMINA-",
+  "official": false,
+  "publisher": "HeightForge Studio",
+  "versions": [
+    {
+      "version": "1.2.0",
+      "releaseTag": "v1.2.0",
+      "assetName": "studio.heightforge.heightmap-1.2.0.lumina-workshop",
+      "assetBytes": 194969,
+      "sha256": "a516432f66661a8f7b0d70277045450a548c09fe7e2241eb8f2fee0b77bc48a9",
+      "manifestSha256": "eaa48d3be7661d4cc128f2136e544685e91dcd33d844286444d72ebc9a6d3545",
+      "workshopApi": {
+        "min": "1.0.0",
+        "maxExclusive": "2.0.0"
+      },
+      "luminaVersion": {
+        "min": "2.0.0"
+      },
+      "permissions": [
+        {
+          "name": "image.pick",
+          "reason": "由用户选择一张图片，读取其像素用于生成高度图"
+        },
+        {
+          "name": "handoff.image",
+          "reason": "把生成的高度图 PNG 交给 Lumina 的浮雕/拼豆转换器"
+        }
+      ],
+      "state": "active",
+      "revocation": null
+    }
+  ]
+}
