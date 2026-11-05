@@ -65,18 +65,25 @@ jobs:
           python scripts/build_registry.py \
             --modules modules \
             --generated-at "${generated_at}" \
-            --output dist/candidate-registry-v1.json
+            --output dist/candidate-registry-v1.json \
+            --reviews-output dist/candidate-reviews-v1.json
           python scripts/build_registry.py \
             --modules modules \
             --generated-at "${generated_at}" \
-            --output dist/candidate-registry-v1-second.json
+            --output dist/candidate-registry-v1-second.json \
+            --reviews-output dist/candidate-reviews-v1-second.json
           cmp \
             dist/candidate-registry-v1.json \
             dist/candidate-registry-v1-second.json
+          cmp \
+            dist/candidate-reviews-v1.json \
+            dist/candidate-reviews-v1-second.json
 
       - name: Upload unsigned candidate for review
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: candidate-registry-v1
-          path: dist/candidate-registry-v1.json
+          path: |
+            dist/candidate-registry-v1.json
+            dist/candidate-reviews-v1.json
           if-no-files-found: error
