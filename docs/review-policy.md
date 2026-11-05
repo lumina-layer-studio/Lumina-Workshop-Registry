@@ -64,18 +64,22 @@ shows such versions as "reviewed"; every other community version, local
 package, and GitHub install is shown as unreviewed and requires an explicit
 risk confirmation. Removing a review record makes the next host refresh treat
 that version as unreviewed again. A review never transfers to another version.
+A review may be added to, updated on, or removed from an already published
+version in a normal PR; it is review metadata, so the ownership check still
+rejects every change to the release fields.
 
 模块后端是以用户权限在本机运行的 Python 代码。签名和静态检查只证明包内容与条目一致，
 不等于代码审核。只有维护者实际审核了某个精确版本的后端代码后，才在该版本记录中添加
 `backendReview`；构建会把它绑定到该版本的包摘要，并只发布到单独签名的
 `reviews-v1.json`，v1 目录格式保持不变。审核不随版本继承；撤回记录后宿主下次刷新即按
-未审核处理。
+未审核处理。已发布版本可通过普通 PR 补充、更新或撤回审核记录；它属于审核元数据，发布字段
+仍受所有权检查保护。
 
 ## Blocking a release
 
 An existing version may move to `blocked` only with a complete revocation
 record containing a stable reason code, severity, and bilingual message. All
-other historical fields remain byte-for-byte immutable. Blocked versions are
+other release fields remain byte-for-byte immutable. Blocked versions are
 never installation candidates.
 
 ## Required repository controls

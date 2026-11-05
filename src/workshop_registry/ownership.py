@@ -38,8 +38,18 @@ def _load_sources(directory: Path) -> dict[str, ModuleSource]:
     return sources
 
 
-def _version_dict(version: SourceVersion) -> dict:
-    return version.model_dump(by_alias=True, mode="json")
+def _release_dict(version: SourceVersion) -> dict:
+    """Immutable release fields of one version.
+
+    ``backendReview`` is maintainer review metadata, not release identity: a
+    review may be recorded after publication and withdrawn later.
+    """
+
+    return version.model_dump(
+        by_alias=True,
+        mode="json",
+        exclude={"backend_review"},
+    )
 
 
 def _is_complete_block_transition(
@@ -48,8 +58,8 @@ def _is_complete_block_transition(
 ) -> bool:
     if current.state != "blocked" or current.revocation is None:
         return False
-    previous_value = _version_dict(previous)
-    current_value = _version_dict(current)
+    previous_value = _release_dict(previous)
+    current_value = _release_dict(current)
     current_value["state"] = previous_value["state"]
     current_value["revocation"] = previous_value["revocation"]
     return current_value == previous_value
@@ -88,7 +98,7 @@ def compare_ownership(base_directory: Path, head_directory: Path) -> None:
                 raise OwnershipError(
                     f"{module_id} version order cannot change"
                 )
-            if current_version == previous_version:
+            if _release_dict(current_version) == _release_dict(previous_version):
                 continue
             if _is_complete_block_transition(
                 previous_version,
