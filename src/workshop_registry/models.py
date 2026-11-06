@@ -161,7 +161,9 @@ class WorkshopProjectSnapshots(StrictFrozenModel):
     @field_validator("schemas")
     @classmethod
     def schemas_are_bounded(cls, value: tuple[str, ...]) -> tuple[str, ...]:
-        if len(set(value)) != len(value) or any(not item or len(item) > 128 for item in value):
+        if len(set(value)) != len(value) or any(
+            not item or len(item) > 128 for item in value
+        ):
             raise ValueError("invalid project snapshot schemas")
         return value
 
@@ -177,7 +179,9 @@ class WorkshopManifest(StrictFrozenModel):
     lumina_version: LuminaRange = Field(alias="luminaVersion")
     entrypoints: Entrypoints
     permissions: tuple[Permission, ...] = Field(max_length=32)
-    project_snapshots: WorkshopProjectSnapshots | None = Field(default=None, alias="projectSnapshots")
+    project_snapshots: WorkshopProjectSnapshots | None = Field(
+        default=None, alias="projectSnapshots"
+    )
 
     @field_validator("id")
     @classmethod
