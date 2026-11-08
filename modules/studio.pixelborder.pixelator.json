@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "studio.pixelborder.pixelator",
+  "repository": "https://github.com/xueseyinlang-cmyk/Lumina-Pixel-Border-Studio",
+  "official": false,
+  "publisher": "Pixel Border Studio",
+  "versions": [
+    {
+      "version": "1.0.5",
+      "releaseTag": "v1.0.5",
+      "assetName": "studio.pixelborder.pixelator-1.0.5.lumina-workshop",
+      "assetBytes": 49866,
+      "sha256": "4d014168c9d1f59d589ab3e517b71f0c17dd0c1903a57d49118f2dadb34f58c0",
+      "manifestSha256": "156ef3414cfdcc24f86b9b5f42acf046f64aaabffe1f74add9a0a5dd55f5199f",
+      "workshopApi": {
+        "min": "1.0.0",
+        "maxExclusive": "2.0.0"
+      },
+      "luminaVersion": {
+        "min": "2.0.0"
+      },
+      "permissions": [
+        {
+          "name": "image.pick",
+          "reason": "由用户从 Lumina 工程中选择一张图片，作为像素化输入"
+        },
+        {
+          "name": "handoff.image",
+          "reason": "把调好黑边的像素化 PNG 交给 Lumina 的转换器继续做 LUT/材料/3MF"
+        }
+      ],
+      "state": "active",
+      "revocation": null
+    }
+  ]
+}
