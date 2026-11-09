@@ -1,24 +1,17 @@
 {
-  "schemaVersion": 1,
   "moduleId": "studio.heightforge.heightmap",
-  "repository": "https://github.com/xueseyinlang-cmyk/LUMINA-",
   "official": false,
   "publisher": "HeightForge Studio",
+  "repository": "https://github.com/xueseyinlang-cmyk/LUMINA-",
+  "schemaVersion": 1,
   "versions": [
     {
-      "version": "1.3.1",
-      "releaseTag": "v1.3.1",
-      "assetName": "studio.heightforge.heightmap-1.3.1.lumina-workshop",
       "assetBytes": 197712,
-      "sha256": "984361f65526f1bd38928e149be0bc717418f6ecd5837111c92623376dcb6232",
-      "manifestSha256": "da26be3c722a0d6f907dd45596b1533b12ab50019b2b3ef974f2ca4527bc61e8",
-      "workshopApi": {
-        "min": "1.0.0",
-        "maxExclusive": "2.0.0"
-      },
+      "assetName": "studio.heightforge.heightmap-1.3.1.lumina-workshop",
       "luminaVersion": {
         "min": "2.0.0"
       },
+      "manifestSha256": "da26be3c722a0d6f907dd45596b1533b12ab50019b2b3ef974f2ca4527bc61e8",
       "permissions": [
         {
           "name": "image.pick",
@@ -29,8 +22,42 @@
           "reason": "把生成的高度图 PNG 交给 Lumina 的浮雕/拼豆转换器"
         }
       ],
+      "releaseTag": "v1.3.1",
+      "revocation": null,
+      "sha256": "984361f65526f1bd38928e149be0bc717418f6ecd5837111c92623376dcb6232",
       "state": "active",
-      "revocation": null
+      "version": "1.3.1",
+      "workshopApi": {
+        "maxExclusive": "2.0.0",
+        "min": "1.0.0"
+      }
+    },
+    {
+      "assetBytes": 206056,
+      "assetName": "studio.heightforge.heightmap-1.3.2.lumina-workshop",
+      "luminaVersion": {
+        "min": "2.0.0"
+      },
+      "manifestSha256": "08c45a871656d42237c5839005abca05857805b9d643495f4bd91b4cadf08347",
+      "permissions": [
+        {
+          "name": "image.pick",
+          "reason": "由用户选择一张图片，读取其像素用于生成高度图"
+        },
+        {
+          "name": "handoff.image",
+          "reason": "把生成的高度图 PNG 交给 Lumina 的浮雕/拼豆转换器"
+        }
+      ],
+      "releaseTag": "v1.3.2",
+      "revocation": null,
+      "sha256": "b62c56cc0b2546873d8b9e5634451e5bc6b7bef3a33c26e7663d1dbed6cd7f20",
+      "state": "active",
+      "version": "1.3.2",
+      "workshopApi": {
+        "maxExclusive": "2.0.0",
+        "min": "1.0.0"
+      }
     }
   ]
 }
