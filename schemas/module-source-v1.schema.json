@@ -19,6 +19,34 @@
       "title": "ApiRange",
       "type": "object"
     },
+    "BackendReview": {
+      "additionalProperties": false,
+      "description": "A maintainer's review of one exact version's backend code.\n\nIt binds to the version record's ``sha256``/``manifestSha256`` and is\npublished only in the separately signed ``reviews-v1.json``.",
+      "properties": {
+        "reviewedAt": {
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+          "title": "Reviewedat",
+          "type": "string"
+        },
+        "reviewer": {
+          "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$",
+          "title": "Reviewer",
+          "type": "string"
+        },
+        "scope": {
+          "const": "backend-code",
+          "title": "Scope",
+          "type": "string"
+        }
+      },
+      "required": [
+        "scope",
+        "reviewer",
+        "reviewedAt"
+      ],
+      "title": "BackendReview",
+      "type": "object"
+    },
     "LocalizedText": {
       "additionalProperties": false,
       "properties": {
@@ -124,6 +152,17 @@
           "minLength": 1,
           "title": "Assetname",
           "type": "string"
+        },
+        "backendReview": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BackendReview"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "luminaVersion": {
           "$ref": "#/$defs/LuminaRange"
