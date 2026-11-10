@@ -114,6 +114,18 @@ def test_backend_manifest_requires_backend_api() -> None:
         WorkshopManifestV2.model_validate(manifest)
 
 
+def test_backend_manifest_accepts_project_snapshots_like_v1() -> None:
+    manifest = backend_manifest()
+    manifest["projectSnapshots"] = {"protocol": 1, "schemas": ["editor/v1"]}
+    with pytest.raises(ValidationError, match=r"project\.storage"):
+        WorkshopManifestV2.model_validate(manifest)
+    manifest["permissions"] = [
+        {"name": "project.storage", "reason": "Keep the editor state."}
+    ]
+    snapshots = WorkshopManifestV2.model_validate(manifest).project_snapshots
+    assert snapshots is not None and snapshots.schemas == ("editor/v1",)
+
+
 def reviewed_source(valid_source: dict, *, state: str = "active") -> dict:
     source = deepcopy(valid_source)
     version = source["versions"][0]

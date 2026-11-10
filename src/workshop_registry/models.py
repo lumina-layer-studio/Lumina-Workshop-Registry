@@ -286,6 +286,20 @@ class BackendDeclaration(StrictFrozenModel):
         return tuple(sorted({self.entry, *locks}))
 
 
+class WorkshopProjectSnapshots(StrictFrozenModel):
+    protocol: Literal[1]
+    schemas: tuple[str, ...] = Field(min_length=1, max_length=32)
+
+    @field_validator("schemas")
+    @classmethod
+    def schemas_are_bounded(cls, value: tuple[str, ...]) -> tuple[str, ...]:
+        if len(set(value)) != len(value) or any(
+            not item or len(item) > 128 for item in value
+        ):
+            raise ValueError("invalid project snapshot schemas")
+        return value
+
+
 class WorkshopManifest(StrictFrozenModel):
     manifest_version: Literal[1] = Field(alias="manifestVersion")
     id: str = Field(min_length=3, max_length=128)
@@ -297,6 +311,9 @@ class WorkshopManifest(StrictFrozenModel):
     lumina_version: LuminaRange = Field(alias="luminaVersion")
     entrypoints: Entrypoints
     permissions: tuple[Permission, ...] = Field(max_length=32)
+    project_snapshots: WorkshopProjectSnapshots | None = Field(
+        default=None, alias="projectSnapshots"
+    )
 
     @field_validator("id")
     @classmethod
@@ -320,6 +337,8 @@ class WorkshopManifest(StrictFrozenModel):
         ]
         if len(permission_names) != len(set(permission_names)):
             raise ValueError("manifest contains duplicate permissions")
+        if self.project_snapshots and "project.storage" not in permission_names:
+            raise ValueError("project snapshots require project.storage permission")
         return self
 
 
@@ -336,6 +355,10 @@ class WorkshopManifestV2(StrictFrozenModel):
     lumina_version: LuminaRange = Field(alias="luminaVersion")
     entrypoints: Entrypoints
     permissions: tuple[Permission, ...] = Field(max_length=32)
+    # The host accepts project snapshots on v1 and v2 manifests alike.
+    project_snapshots: WorkshopProjectSnapshots | None = Field(
+        default=None, alias="projectSnapshots"
+    )
     backend: BackendDeclaration
 
     @model_validator(mode="after")
@@ -346,6 +369,8 @@ class WorkshopManifestV2(StrictFrozenModel):
         names = [permission.name for permission in self.permissions]
         if len(names) != len(set(names)):
             raise ValueError("manifest contains duplicate permissions")
+        if self.project_snapshots and "project.storage" not in names:
+            raise ValueError("project snapshots require project.storage permission")
         if compare_semver(self.workshop_api.minimum, BACKEND_API_VERSION) < 0:
             raise ValueError(
                 f"backend modules require workshopApi.min >= {BACKEND_API_VERSION}"
