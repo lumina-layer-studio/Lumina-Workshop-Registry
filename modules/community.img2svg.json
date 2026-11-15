@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "community.img2svg",
+  "repository": "https://github.com/pyramid865/lumina-img2svg-module",
+  "official": false,
+  "publisher": "pyramid17",
+  "versions": [
+    {
+      "version": "0.1.0",
+      "releaseTag": "v0.1.0",
+      "assetName": "community.img2svg-0.1.0.lumina-workshop",
+      "assetBytes": 158915,
+      "sha256": "e56cdbaa926614cdf1d4d1abf5238b7fdc45dba720df058ab60eff6b08fbd84d",
+      "manifestSha256": "a1df405d9172451fce350d676fdfe0ca6b5453a10a79cf6c4d74c36f3a440693",
+      "workshopApi": {
+        "min": "1.1.0",
+        "maxExclusive": "2.0.0"
+      },
+      "luminaVersion": {
+        "min": "2.0.0"
+      },
+      "permissions": [
+        {
+          "name": "image.pick",
+          "reason": "由用户选择要转换的插画，读取像素后交给后端描摹"
+        },
+        {
+          "name": "color-library.read",
+          "reason": "交接时读取当前宿主色库 ID，供 Lumina 转换器核对颜色"
+        },
+        {
+          "name": "handoff.image",
+          "reason": "把生成的分层 SVG 与兼容 PNG 交给 Lumina 转换器"
+        }
+      ],
+      "state": "active",
+      "revocation": null
+    }
+  ]
+}
