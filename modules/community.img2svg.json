@@ -6,7 +6,7 @@
   "schemaVersion": 1,
   "versions": [
     {
-      "assetBytes": 172192,
+      "assetBytes": 172442,
       "assetName": "community.img2svg-0.1.1.lumina-workshop",
       "luminaVersion": {
         "min": "2.0.0"
@@ -28,7 +28,7 @@
       ],
       "releaseTag": "v0.1.1",
       "revocation": null,
-      "sha256": "7b6edab1009fb984595ae7faee988c65e3b3b36630db6dc47756e99d38c0e4e8",
+      "sha256": "2a98f9d963cfed58ee7651ecaff3e17e9b2ac2ad905bfc6aeead632e10906b54",
       "state": "active",
       "version": "0.1.1",
       "workshopApi": {
