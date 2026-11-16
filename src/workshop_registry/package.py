@@ -8,11 +8,13 @@ import json
 import re
 import stat
 import struct
+import tomllib
 import unicodedata
 from collections.abc import Iterable
 from html.parser import HTMLParser
 from pathlib import Path, PurePosixPath
 from typing import Any
+from urllib.parse import urlsplit
 from zipfile import (
     ZIP_DEFLATED,
     ZIP_STORED,
@@ -25,7 +27,12 @@ from zipfile import (
 from PIL import Image, UnidentifiedImageError
 from pydantic import ValidationError
 
-from .models import InspectedPackage, WorkshopManifest
+from .models import (
+    BackendDeclaration,
+    InspectedPackage,
+    WorkshopManifest,
+    WorkshopManifestV2,
+)
 
 MAX_PACKAGE_BYTES = 100 * 1024 * 1024
 MAX_UNPACKED_BYTES = 300 * 1024 * 1024
@@ -49,6 +56,16 @@ REQUIRED_PACKAGE_FILES = frozenset(
         "LICENSE",
     }
 )
+# Manifest v2 backend sources; identical limits to Lumina's host inspector.
+BACKEND_PREFIX = "backend/"
+BACKEND_SOURCE_SUFFIXES = frozenset(
+    {".py", ".toml", ".json", ".txt", ".md", ".cfg", ".ini", ".csv"}
+)
+MAX_BACKEND_FILES = 1_000
+MAX_BACKEND_FILE_BYTES = 2 * 1024 * 1024
+MAX_BACKEND_TOTAL_BYTES = 32 * 1024 * 1024
+MAX_BACKEND_LOCK_PACKAGES = 1_000
+_SHA256 = re.compile(r"^[0-9a-f]{64}$")
 
 
 class PackageInspectionError(ValueError):
@@ -109,7 +126,9 @@ def _has_unsupported_file_type(info: ZipInfo) -> bool:
 
 
 def _validate_member_path(info: ZipInfo, seen: set[str]) -> str:
-    name = info.filename
+    # Validate the raw stored name like the Lumina host: on Windows
+    # ``ZipInfo.filename`` rewrites ``\`` to ``/`` and would hide it.
+    name = info.orig_filename
     if (
         not name
         or "\x00" in name
@@ -207,7 +226,9 @@ def _validate_declared_limits(
     return unpacked_bytes
 
 
-def _validate_package_file_set(member_names: set[str]) -> list[str]:
+def _validate_package_file_set(
+    member_names: set[str],
+) -> tuple[list[str], list[str]]:
     missing = REQUIRED_PACKAGE_FILES - member_names
     if missing:
         missing_list = ", ".join(sorted(missing))
@@ -216,11 +237,15 @@ def _validate_package_file_set(member_names: set[str]) -> list[str]:
         )
 
     gallery_names: list[str] = []
+    backend_names: list[str] = []
     for name in member_names:
         if name in REQUIRED_PACKAGE_FILES:
             continue
         if name.startswith(_GALLERY_PREFIX):
             gallery_names.append(name)
+            continue
+        if name.startswith(BACKEND_PREFIX):
+            backend_names.append(name)
             continue
         raise PackageInspectionError(f"unexpected package file: {name!r}")
 
@@ -228,7 +253,92 @@ def _validate_package_file_set(member_names: set[str]) -> list[str]:
         raise PackageInspectionError(
             f"gallery file count exceeds {MAX_GALLERY_FILES}"
         )
-    return sorted(gallery_names)
+    return sorted(gallery_names), sorted(backend_names)
+
+
+def _validate_backend_lock(value: bytes) -> None:
+    """Wheels-only PEP 751 lock with HTTPS URLs and SHA-256 per wheel."""
+
+    try:
+        document = tomllib.loads(value.decode("utf-8"))
+    except (UnicodeDecodeError, tomllib.TOMLDecodeError) as exc:
+        raise PackageInspectionError("invalid backend lock: not valid TOML") from exc
+    lock_version = document.get("lock-version")
+    packages = document.get("packages", [])
+    if not isinstance(lock_version, str) or lock_version.split(".", 1)[0] != "1":
+        raise PackageInspectionError("invalid backend lock: lock-version must be 1.x")
+    if not isinstance(packages, list) or len(packages) > MAX_BACKEND_LOCK_PACKAGES:
+        raise PackageInspectionError(
+            "invalid backend lock: packages must be a bounded array"
+        )
+    for package in packages:
+        if not isinstance(package, dict) or any(
+            key in package for key in ("sdist", "vcs", "directory", "archive")
+        ):
+            raise PackageInspectionError("invalid backend lock: prebuilt wheels only")
+        wheels = package.get("wheels")
+        if (
+            not isinstance(package.get("name"), str)
+            or not isinstance(package.get("version"), str)
+            or not isinstance(wheels, list)
+            or not wheels
+        ):
+            raise PackageInspectionError(
+                "invalid backend lock: package entry is incomplete"
+            )
+        for wheel in wheels:
+            url = wheel.get("url") if isinstance(wheel, dict) else None
+            hashes = wheel.get("hashes") if isinstance(wheel, dict) else None
+            parsed = urlsplit(url) if isinstance(url, str) else None
+            if (
+                parsed is None
+                or parsed.scheme != "https"
+                or not parsed.hostname
+                or parsed.username is not None
+                or "path" in wheel
+                or not isinstance(hashes, dict)
+                or not isinstance(hashes.get("sha256"), str)
+                or _SHA256.fullmatch(hashes["sha256"]) is None
+            ):
+                raise PackageInspectionError(
+                    "invalid backend lock: wheels need HTTPS URLs and SHA-256"
+                )
+
+
+def _validate_backend_files(
+    package: ZipFile,
+    members_by_name: dict[str, ZipInfo],
+    backend_names: list[str],
+    declaration: BackendDeclaration,
+) -> None:
+    if len(backend_names) > MAX_BACKEND_FILES:
+        raise PackageInspectionError(f"backend file count exceeds {MAX_BACKEND_FILES}")
+    total = 0
+    for name in backend_names:
+        info = members_by_name[name]
+        parts = name.split("/")
+        if "__pycache__" in parts or any(part.startswith(".") for part in parts):
+            raise PackageInspectionError(
+                f"backend cache or hidden file is not allowed: {name!r}"
+            )
+        if Path(name).suffix.casefold() not in BACKEND_SOURCE_SUFFIXES:
+            raise PackageInspectionError(
+                f"backend files must be text sources, not native code: {name!r}"
+            )
+        if info.file_size > MAX_BACKEND_FILE_BYTES:
+            raise PackageInspectionError(f"backend file size exceeds limit: {name!r}")
+        total += info.file_size
+        if total > MAX_BACKEND_TOTAL_BYTES:
+            raise PackageInspectionError("backend source size exceeds limit")
+        _decode_utf8(name, _read_member(package, info))
+    present = set(backend_names)
+    for required in declaration.referenced_files():
+        if required not in present:
+            raise PackageInspectionError(
+                f"backend declaration references a missing file: {required!r}"
+            )
+    for lock in (declaration.lock, *(variant.lock for variant in declaration.variants)):
+        _validate_backend_lock(_read_member(package, members_by_name[lock]))
 
 
 def _validate_specific_declared_limits(
@@ -297,7 +407,7 @@ def _json_object_without_duplicates(
     return value
 
 
-def _parse_manifest(value: bytes) -> WorkshopManifest:
+def _parse_manifest(value: bytes) -> WorkshopManifest | WorkshopManifestV2:
     text = _decode_utf8("manifest.json", value)
     try:
         raw = json.loads(
@@ -311,6 +421,8 @@ def _parse_manifest(value: bytes) -> WorkshopManifest:
     if not isinstance(raw, dict):
         raise PackageInspectionError("invalid manifest: root must be an object")
     try:
+        if raw.get("manifestVersion") == 2:
+            return WorkshopManifestV2.model_validate(raw)
         return WorkshopManifest.model_validate(raw)
     except ValidationError as exc:
         raise PackageInspectionError(f"invalid manifest: {exc}") from exc
@@ -566,7 +678,7 @@ def _inspect_open_zip(
         members,
         max_ratio=max_ratio,
     )
-    gallery_names = _validate_package_file_set(set(members_by_name))
+    gallery_names, backend_names = _validate_package_file_set(set(members_by_name))
     _validate_specific_declared_limits(members_by_name, gallery_names)
 
     manifest_bytes = _read_member(package, members_by_name["manifest.json"])
@@ -576,6 +688,12 @@ def _inspect_open_zip(
     license_bytes = _read_member(package, members_by_name["LICENSE"])
 
     manifest = _parse_manifest(manifest_bytes)
+    if isinstance(manifest, WorkshopManifestV2):
+        _validate_backend_files(
+            package, members_by_name, backend_names, manifest.backend
+        )
+    elif backend_names:
+        raise PackageInspectionError("backend files require manifest v2")
     _validate_runtime_html(runtime_html)
     _validate_image(
         name="assets/icon.png",

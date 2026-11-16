@@ -154,6 +154,41 @@ def test_existing_version_may_be_blocked_with_complete_revocation(
     compare_ownership(base, head)
 
 
+REVIEW = {
+    "scope": "backend-code",
+    "reviewer": "maintainer",
+    "reviewedAt": "2026-11-04",
+}
+
+
+@pytest.mark.parametrize("change", ["add", "withdraw"])
+def test_backend_review_of_an_existing_version_may_change(
+    source_directories: tuple[Path, Path],
+    change: str,
+) -> None:
+    base, head = source_directories
+    edited = head if change == "add" else base
+    path = edited / "fixture.hello.json"
+    source = read_source(path)
+    source["versions"][0]["backendReview"] = REVIEW
+    write_source(path, source)
+    compare_ownership(base, head)
+
+
+def test_review_change_does_not_admit_release_rewrites(
+    source_directories: tuple[Path, Path],
+) -> None:
+    base, head = source_directories
+    path = head / "fixture.hello.json"
+    source = read_source(path)
+    source["versions"][0]["backendReview"] = REVIEW
+    source["versions"][0]["sha256"] = "f" * 64
+    write_source(path, source)
+
+    with pytest.raises(OwnershipError, match="immutable version"):
+        compare_ownership(base, head)
+
+
 def test_other_existing_version_state_mutations_are_rejected(
     source_directories: tuple[Path, Path],
 ) -> None:

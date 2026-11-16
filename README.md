@@ -13,6 +13,10 @@ permission, update, rollback, and uninstall contract.
 
 - `https://lumina-layer-studio.github.io/Lumina-Workshop-Registry/registry-v1.json`
 - `https://lumina-layer-studio.github.io/Lumina-Workshop-Registry/registry-v1.sig`
+- `https://lumina-layer-studio.github.io/Lumina-Workshop-Registry/reviews-v1.json`
+  and `reviews-v1.sig`: exact module versions whose **backend code** a
+  maintainer reviewed (published separately so the v1 index format and older
+  hosts stay unchanged)
 
 The detached Ed25519 signature covers the exact JSON bytes, including the
 single trailing newline. Lumina owns the trusted public-key set; a Registry PR

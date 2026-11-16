@@ -122,9 +122,14 @@ def test_publish_only_signs_protected_main() -> None:
     assert "scripts/sign_registry.py" in text
     assert text.count("scripts/verify_registry.py") >= 2
     assert "find pages -maxdepth 1 -type f" in text
-    assert '"3"' in text
+    assert '"5"' in text
     assert "pages/registry-v1.json" in text
     assert "pages/registry-v1.sig" in text
+    # Backend reviews are a separately signed pair beside the v1 index.
+    assert "--reviews-output dist/reviews-v1.json" in text
+    assert "pages/reviews-v1.json" in text
+    assert "pages/reviews-v1.sig" in text
+    assert text.count("scripts/sign_registry.py") == 2
     assert "pages/index.html" in text
     assert "actions/upload-pages-artifact@" in text
     assert "actions/deploy-pages@" in text

@@ -48,15 +48,20 @@ jobs:
           python scripts/build_registry.py \
             --modules modules \
             --generated-at "${generated_at}" \
-            --output dist/registry-v1.json
+            --output dist/registry-v1.json \
+            --reviews-output dist/reviews-v1.json
 
-      - name: Sign exact index bytes
+      - name: Sign exact index and review bytes
         env:
           REGISTRY_ED25519_PRIVATE_KEY: ${{ secrets.REGISTRY_ED25519_PRIVATE_KEY }}
         run: |
           python scripts/sign_registry.py \
             --index dist/registry-v1.json \
             --output dist/registry-v1.sig \
+            --key-id registry-2026-01
+          python scripts/sign_registry.py \
+            --index dist/reviews-v1.json \
+            --output dist/reviews-v1.sig \
             --key-id registry-2026-01
 
       - name: Verify with the reviewed public key
@@ -65,17 +70,25 @@ jobs:
             --index dist/registry-v1.json \
             --signature dist/registry-v1.sig \
             --public-key keys/registry-2026-01.public.json
+          python scripts/verify_registry.py \
+            --index dist/reviews-v1.json \
+            --signature dist/reviews-v1.sig \
+            --public-key keys/registry-2026-01.public.json
 
       - name: Construct the exact Pages payload
         run: |
           python scripts/build_pages.py \
             --index dist/registry-v1.json \
             --signature dist/registry-v1.sig \
+            --reviews dist/reviews-v1.json \
+            --reviews-signature dist/reviews-v1.sig \
             --output pages
           file_count="$(find pages -maxdepth 1 -type f | wc -l | tr -d ' ')"
-          test "${file_count}" = "3"
+          test "${file_count}" = "5"
           test -f pages/registry-v1.json
           test -f pages/registry-v1.sig
+          test -f pages/reviews-v1.json
+          test -f pages/reviews-v1.sig
           test -f pages/index.html
 
       - name: Configure GitHub Pages
@@ -103,4 +116,14 @@ jobs:
           python scripts/verify_registry.py \
             --index /tmp/deployed-registry-v1.json \
             --signature /tmp/deployed-registry-v1.sig \
+            --public-key keys/registry-2026-01.public.json
+          curl --fail --location --retry 10 --retry-delay 3 \
+            "${PAGE_URL}reviews-v1.json" \
+            --output /tmp/deployed-reviews-v1.json
+          curl --fail --location --retry 10 --retry-delay 3 \
+            "${PAGE_URL}reviews-v1.sig" \
+            --output /tmp/deployed-reviews-v1.sig
+          python scripts/verify_registry.py \
+            --index /tmp/deployed-reviews-v1.json \
+            --signature /tmp/deployed-reviews-v1.sig \
             --public-key keys/registry-2026-01.public.json

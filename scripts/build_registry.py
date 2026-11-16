@@ -14,7 +14,9 @@ from workshop_registry.canonical import canonical_json_bytes
 from workshop_registry.models import (
     ModuleSource,
     RegistryIndex,
+    ReviewIndex,
     SourceVersion,
+    semver_sort_key,
 )
 from workshop_registry.release import InspectedRelease, inspect_release
 
@@ -104,6 +106,40 @@ def _normalize_generated_at(value: str) -> str:
     return parsed.isoformat().replace("+00:00", "Z")
 
 
+def _review_attestation(
+    source: ModuleSource,
+    reviewed: SourceVersion,
+    release: Any,
+) -> dict[str, Any] | None:
+    """Return the signed-review entry for one version, if it was reviewed.
+
+    A backend review binds to the exact package bytes already checked by
+    ``_assert_review_matches_release`` and must describe a v2 package that
+    actually declares a backend. Blocked versions are never attested.
+    """
+
+    review = reviewed.backend_review
+    if review is None:
+        return None
+    manifest = release.package.manifest
+    declares_backend = getattr(manifest, "backend", None) is not None
+    if getattr(manifest, "manifest_version", 1) != 2 or not declares_backend:
+        raise RegistryBuildError(
+            f"{source.module_id}@{reviewed.version} backendReview requires "
+            "a manifest v2 package that declares a backend"
+        )
+    if reviewed.state == "blocked":
+        return None
+    return {
+        "moduleId": source.module_id,
+        "version": reviewed.version,
+        "sha256": reviewed.sha256,
+        "manifestSha256": reviewed.manifest_sha256,
+        "scope": review.scope,
+        "reviewedAt": review.reviewed_at,
+    }
+
+
 def build_registry(
     source_directory: Path,
     *,
@@ -112,8 +148,28 @@ def build_registry(
 ) -> bytes:
     """Build exact canonical index bytes after re-inspecting every release."""
 
+    return build_registry_outputs(
+        source_directory,
+        generated_at=generated_at,
+        inspector=inspector,
+    )[0]
+
+
+def build_registry_outputs(
+    source_directory: Path,
+    *,
+    generated_at: str,
+    inspector: ReleaseInspector | None = None,
+) -> tuple[bytes, bytes]:
+    """Build the v1 index and the separately signed review attestations.
+
+    The v1 index format is unchanged so older Lumina hosts keep parsing it;
+    backend reviews are published only in ``reviews-v1.json``.
+    """
+
     inspect_one = inspector or _live_inspector
     output_modules: list[dict[str, Any]] = []
+    attestations: list[dict[str, Any]] = []
     for source in _load_sources(source_directory):
         output_versions: list[dict[str, Any]] = []
         display_name: dict[str, str] | None = None
@@ -154,9 +210,13 @@ def build_registry(
             version_value = reviewed.model_dump(
                 by_alias=True,
                 mode="json",
+                exclude={"backend_review"},
             )
             version_value["downloadUrl"] = release.download_url
             output_versions.append(version_value)
+            attestation = _review_attestation(source, reviewed, release)
+            if attestation is not None:
+                attestations.append(attestation)
 
         if not output_versions or display_name is None or description is None:
             continue
@@ -172,14 +232,26 @@ def build_registry(
             }
         )
 
+    normalized_generated_at = _normalize_generated_at(generated_at)
     raw_index = {
         "schemaVersion": 1,
-        "generatedAt": _normalize_generated_at(generated_at),
+        "generatedAt": normalized_generated_at,
         "modules": output_modules,
     }
     index = RegistryIndex.model_validate(raw_index)
-    return canonical_json_bytes(
-        index.model_dump(by_alias=True, mode="json")
+    reviews = ReviewIndex.model_validate(
+        {
+            "schemaVersion": 1,
+            "generatedAt": normalized_generated_at,
+            "reviews": sorted(
+                attestations,
+                key=lambda item: (item["moduleId"], semver_sort_key(item["version"])),
+            ),
+        }
+    )
+    return (
+        canonical_json_bytes(index.model_dump(by_alias=True, mode="json")),
+        canonical_json_bytes(reviews.model_dump(by_alias=True, mode="json")),
     )
 
 
@@ -207,12 +279,19 @@ def main() -> int:
     parser.add_argument("--modules", type=Path, default=Path("modules"))
     parser.add_argument("--generated-at", required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--reviews-output",
+        type=Path,
+        help="Also write the backend review attestations (reviews-v1.json).",
+    )
     arguments = parser.parse_args()
-    payload = build_registry(
+    index_payload, reviews_payload = build_registry_outputs(
         arguments.modules,
         generated_at=arguments.generated_at,
     )
-    _write_atomic(arguments.output, payload)
+    _write_atomic(arguments.output, index_payload)
+    if arguments.reviews_output is not None:
+        _write_atomic(arguments.reviews_output, reviews_payload)
     return 0
 
 

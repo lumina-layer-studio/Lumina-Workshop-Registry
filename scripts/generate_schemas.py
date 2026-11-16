@@ -5,12 +5,13 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from workshop_registry.models import ModuleSource, RegistryIndex
+from workshop_registry.models import ModuleSource, RegistryIndex, ReviewIndex
 
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMAS = {
     "module-source-v1.schema.json": ModuleSource,
     "registry-v1.schema.json": RegistryIndex,
+    "reviews-v1.schema.json": ReviewIndex,
 }
 
 
