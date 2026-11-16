@@ -1,24 +1,17 @@
 {
-  "schemaVersion": 1,
   "moduleId": "community.img2svg",
-  "repository": "https://github.com/pyramid865/lumina-img2svg-module",
   "official": false,
   "publisher": "pyramid17",
+  "repository": "https://github.com/pyramid865/lumina-img2svg-module",
+  "schemaVersion": 1,
   "versions": [
     {
-      "version": "0.1.0",
-      "releaseTag": "v0.1.0",
-      "assetName": "community.img2svg-0.1.0.lumina-workshop",
-      "assetBytes": 158915,
-      "sha256": "e56cdbaa926614cdf1d4d1abf5238b7fdc45dba720df058ab60eff6b08fbd84d",
-      "manifestSha256": "a1df405d9172451fce350d676fdfe0ca6b5453a10a79cf6c4d74c36f3a440693",
-      "workshopApi": {
-        "min": "1.1.0",
-        "maxExclusive": "2.0.0"
-      },
+      "assetBytes": 172192,
+      "assetName": "community.img2svg-0.1.1.lumina-workshop",
       "luminaVersion": {
         "min": "2.0.0"
       },
+      "manifestSha256": "cbdbd30d89b38bcde893d0435097ce9e1f95cb2873a13efcf2bfefb18cd6f6fb",
       "permissions": [
         {
           "name": "image.pick",
@@ -33,8 +26,15 @@
           "reason": "把生成的分层 SVG 与兼容 PNG 交给 Lumina 转换器"
         }
       ],
+      "releaseTag": "v0.1.1",
+      "revocation": null,
+      "sha256": "7b6edab1009fb984595ae7faee988c65e3b3b36630db6dc47756e99d38c0e4e8",
       "state": "active",
-      "revocation": null
+      "version": "0.1.1",
+      "workshopApi": {
+        "maxExclusive": "2.0.0",
+        "min": "1.1.0"
+      }
     }
   ]
 }
