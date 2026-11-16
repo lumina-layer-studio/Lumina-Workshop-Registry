@@ -31,6 +31,33 @@
       ],
       "state": "active",
       "revocation": null
+    },
+    {
+      "version": "1.0.6",
+      "releaseTag": "v1.0.6",
+      "assetName": "studio.pixelborder.pixelator-1.0.6.lumina-workshop",
+      "assetBytes": 62307,
+      "sha256": "57a225f8bdc49431718e24be62459aa70e6e85c497b4fe3c96f82423cd3ad915",
+      "manifestSha256": "5226b98443ca1262dd6da1be77008ebf6063fe5a52c41d0917460849d00060aa",
+      "workshopApi": {
+        "min": "1.0.0",
+        "maxExclusive": "2.0.0"
+      },
+      "luminaVersion": {
+        "min": "2.0.0"
+      },
+      "permissions": [
+        {
+          "name": "image.pick",
+          "reason": "由用户从 Lumina 工程中选择一张图片，作为像素化输入"
+        },
+        {
+          "name": "handoff.image",
+          "reason": "把调好黑边的像素化 PNG 交给 Lumina 的转换器继续做 LUT/材料/3MF"
+        }
+      ],
+      "state": "active",
+      "revocation": null
     }
   ]
 }
