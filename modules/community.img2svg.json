@@ -6,37 +6,6 @@
   "schemaVersion": 1,
   "versions": [
     {
-      "assetBytes": 172442,
-      "assetName": "community.img2svg-0.1.1.lumina-workshop",
-      "luminaVersion": {
-        "min": "2.0.0"
-      },
-      "manifestSha256": "cbdbd30d89b38bcde893d0435097ce9e1f95cb2873a13efcf2bfefb18cd6f6fb",
-      "permissions": [
-        {
-          "name": "image.pick",
-          "reason": "由用户选择要转换的插画，读取像素后交给后端描摹"
-        },
-        {
-          "name": "color-library.read",
-          "reason": "交接时读取当前宿主色库 ID，供 Lumina 转换器核对颜色"
-        },
-        {
-          "name": "handoff.image",
-          "reason": "把生成的分层 SVG 与兼容 PNG 交给 Lumina 转换器"
-        }
-      ],
-      "releaseTag": "v0.1.1",
-      "revocation": null,
-      "sha256": "2a98f9d963cfed58ee7651ecaff3e17e9b2ac2ad905bfc6aeead632e10906b54",
-      "state": "active",
-      "version": "0.1.1",
-      "workshopApi": {
-        "maxExclusive": "2.0.0",
-        "min": "1.1.0"
-      }
-    },
-    {
       "assetBytes": 158915,
       "assetName": "community.img2svg-0.1.0.lumina-workshop",
       "luminaVersion": {
@@ -62,6 +31,68 @@
       "sha256": "e56cdbaa926614cdf1d4d1abf5238b7fdc45dba720df058ab60eff6b08fbd84d",
       "state": "deprecated",
       "version": "0.1.0",
+      "workshopApi": {
+        "maxExclusive": "2.0.0",
+        "min": "1.1.0"
+      }
+    },
+    {
+      "assetBytes": 172192,
+      "assetName": "community.img2svg-0.1.1.lumina-workshop",
+      "luminaVersion": {
+        "min": "2.0.0"
+      },
+      "manifestSha256": "cbdbd30d89b38bcde893d0435097ce9e1f95cb2873a13efcf2bfefb18cd6f6fb",
+      "permissions": [
+        {
+          "name": "image.pick",
+          "reason": "由用户选择要转换的插画，读取像素后交给后端描摹"
+        },
+        {
+          "name": "color-library.read",
+          "reason": "交接时读取当前宿主色库 ID，供 Lumina 转换器核对颜色"
+        },
+        {
+          "name": "handoff.image",
+          "reason": "把生成的分层 SVG 与兼容 PNG 交给 Lumina 转换器"
+        }
+      ],
+      "releaseTag": "v0.1.1",
+      "revocation": null,
+      "sha256": "7b6edab1009fb984595ae7faee988c65e3b3b36630db6dc47756e99d38c0e4e8",
+      "state": "active",
+      "version": "0.1.1",
+      "workshopApi": {
+        "maxExclusive": "2.0.0",
+        "min": "1.1.0"
+      }
+    },
+    {
+      "assetBytes": 173192,
+      "assetName": "community.img2svg-0.1.3.lumina-workshop",
+      "luminaVersion": {
+        "min": "2.0.0"
+      },
+      "manifestSha256": "7c0364992bd3a52fe679c5f30928d563c1426d4f1fa0a53c938a9473494956a5",
+      "permissions": [
+        {
+          "name": "image.pick",
+          "reason": "由用户选择要转换的插画，读取像素后交给后端描摹"
+        },
+        {
+          "name": "color-library.read",
+          "reason": "交接时读取当前宿主色库 ID，供 Lumina 转换器核对颜色"
+        },
+        {
+          "name": "handoff.image",
+          "reason": "把生成的分层 SVG 与兼容 PNG 交给 Lumina 转换器"
+        }
+      ],
+      "releaseTag": "v0.1.3",
+      "revocation": null,
+      "sha256": "46ebb652affa7ebb740166872ffd1c36f9162ee13cc71ed8393cb8c400006bb6",
+      "state": "active",
+      "version": "0.1.3",
       "workshopApi": {
         "maxExclusive": "2.0.0",
         "min": "1.1.0"
