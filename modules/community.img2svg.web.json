@@ -29,39 +29,8 @@
       "releaseTag": "v0.1.0",
       "revocation": null,
       "sha256": "56bef7c0d338c769930dbf9113b6cbd5baacc06ef065a513bd1c43625c6e4449",
-      "state": "deprecated",
-      "version": "0.1.0",
-      "workshopApi": {
-        "maxExclusive": "2.0.0",
-        "min": "1.0.0"
-      }
-    },
-    {
-      "assetBytes": 27791,
-      "assetName": "community.img2svg.web-0.1.1.lumina-workshop",
-      "luminaVersion": {
-        "min": "2.0.0"
-      },
-      "manifestSha256": "4a25b7ba87c62fa5567c2f27e51257fbcf13ad8de04e79f26e263682b04906ef",
-      "permissions": [
-        {
-          "name": "image.pick",
-          "reason": "选择要描摹的原图"
-        },
-        {
-          "name": "color-library.read",
-          "reason": "交接时读取当前色库标识"
-        },
-        {
-          "name": "handoff.image",
-          "reason": "将描摹完成的 PNG/SVG 交给 Lumina 转换器"
-        }
-      ],
-      "releaseTag": "v0.1.1",
-      "revocation": null,
-      "sha256": "2f8e9ee0b0523be14f6b58adc74b31bb51853c2c867caf7dfbc4902c08f9486d",
       "state": "active",
-      "version": "0.1.1",
+      "version": "0.1.0",
       "workshopApi": {
         "maxExclusive": "2.0.0",
         "min": "1.0.0"
