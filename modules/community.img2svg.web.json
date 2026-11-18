@@ -1,0 +1,40 @@
+{
+  "moduleId": "community.img2svg.web",
+  "official": false,
+  "publisher": "pyramid17",
+  "repository": "https://github.com/pyramid865/lumina-img2svg-web-module",
+  "schemaVersion": 1,
+  "versions": [
+    {
+      "assetBytes": 235314,
+      "assetName": "community.img2svg.web-0.1.0.lumina-workshop",
+      "luminaVersion": {
+        "min": "2.0.0"
+      },
+      "manifestSha256": "77f4493b7f6d4022e748ba4f00d153efe55f1e25a906e3bfdfbb9b1df613191d",
+      "permissions": [
+        {
+          "name": "image.pick",
+          "reason": "选择要描摹的原图"
+        },
+        {
+          "name": "color-library.read",
+          "reason": "交接时读取当前色库标识"
+        },
+        {
+          "name": "handoff.image",
+          "reason": "将描摹完成的 PNG/SVG 交给 Lumina 转换器"
+        }
+      ],
+      "releaseTag": "v0.1.0",
+      "revocation": null,
+      "sha256": "56bef7c0d338c769930dbf9113b6cbd5baacc06ef065a513bd1c43625c6e4449",
+      "state": "active",
+      "version": "0.1.0",
+      "workshopApi": {
+        "maxExclusive": "2.0.0",
+        "min": "1.0.0"
+      }
+    }
+  ]
+}
