@@ -35,6 +35,37 @@
         "maxExclusive": "2.0.0",
         "min": "1.1.0"
       }
+    },
+    {
+      "assetBytes": 173919,
+      "assetName": "community.img2svg-0.1.4.lumina-workshop",
+      "luminaVersion": {
+        "min": "2.0.0"
+      },
+      "manifestSha256": "8c92f474812ca869c1fb2045e8c591198748f9d35d76ce216472129689da1fe0",
+      "permissions": [
+        {
+          "name": "image.pick",
+          "reason": "由用户选择要转换的插画，读取像素后交给后端描摹"
+        },
+        {
+          "name": "color-library.read",
+          "reason": "交接时读取当前宿主色库 ID，供 Lumina 转换器核对颜色"
+        },
+        {
+          "name": "handoff.image",
+          "reason": "把生成的分层 SVG 与兼容 PNG 交给 Lumina 转换器"
+        }
+      ],
+      "releaseTag": "v0.1.4",
+      "revocation": null,
+      "sha256": "f1825b751a38fbe6613c02f1d7719f0b828d635d929d1bbddb1abd4d1e3095ae",
+      "state": "active",
+      "version": "0.1.4",
+      "workshopApi": {
+        "maxExclusive": "2.0.0",
+        "min": "1.1.0"
+      }
     }
   ]
 }
