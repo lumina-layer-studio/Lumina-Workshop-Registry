@@ -49,6 +49,11 @@ user's permissions. Static inspection checks the package shape (bounded UTF-8
 `backend/` sources, wheels-only hash-pinned `pylock.toml`, no native files),
 but a valid signature or a passing inspection is **not** a code review.
 
+Workshop API 1.2.0 also allows download mirrors for pinned wheels and data
+files, alternate Python distribution URLs, and translated permission reasons.
+Package inspection validates these declarations. The signed v1 catalog
+retains the default permission reason so older hosts can read the catalog.
+
 A maintainer who actually reviewed one exact version's backend code adds a
 `backendReview` record to that source version:
 

@@ -31,7 +31,7 @@ def candidate_from_release(release: InspectedRelease) -> dict:
             mode="json",
         ),
         "permissions": [
-            permission.model_dump(by_alias=True, mode="json")
+            permission.model_dump(include={"name", "reason"}, by_alias=True, mode="json")
             for permission in manifest.permissions
         ],
         "state": "active",

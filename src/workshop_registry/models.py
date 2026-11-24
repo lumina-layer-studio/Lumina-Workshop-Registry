@@ -5,10 +5,11 @@ from __future__ import annotations
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Literal
+from typing import Annotated, Literal
 from urllib.parse import urlsplit
 
 from pydantic import (
+    AfterValidator,
     BaseModel,
     ConfigDict,
     Field,
@@ -39,6 +40,7 @@ ALLOWED_PERMISSION_NAMES = frozenset(
 )
 # Manifest v2 backend declarations; must stay identical to Lumina's host.
 BACKEND_API_VERSION = "1.1.0"
+DOWNLOAD_SOURCES_API_VERSION = "1.2.0"
 BACKEND_PYTHON_VERSIONS = frozenset({"3.12"})
 BACKEND_PLATFORMS = frozenset({"windows-x86_64", "linux-x86_64", "macos-arm64"})
 BACKEND_CAPABILITY_NAMES = frozenset({"network", "subprocess", "external-files"})
@@ -156,6 +158,11 @@ class Permission(StrictFrozenModel):
         return normalized
 
 
+class ManifestPermission(Permission):
+    # Registry v1 records retain the plain default reason.
+    reason_i18n: LocalizedText | None = Field(default=None, alias="reasonI18n")
+
+
 class Entrypoints(StrictFrozenModel):
     ui: str
 
@@ -190,9 +197,50 @@ def _known_platforms(values: tuple[str, ...]) -> bool:
     return set(values) <= BACKEND_PLATFORMS and len(set(values)) == len(values)
 
 
+def _https_download_url(value: str) -> str:
+    parsed = urlsplit(value)
+    if (
+        parsed.scheme != "https" or not parsed.hostname or parsed.username is not None
+        or parsed.password is not None or parsed.fragment
+    ):
+        raise ValueError("URL must be credential-free HTTPS")
+    return value
+
+
+def _unique_urls(values: tuple[str, ...]) -> tuple[str, ...]:
+    if len(values) != len(set(values)):
+        raise ValueError("download URLs must be unique")
+    return values
+
+
+def _python_mirror(value: str) -> str:
+    if urlsplit(value).query:
+        raise ValueError("Python mirror prefixes cannot include a query string")
+    return value.rstrip("/")
+
+
+DownloadURL = Annotated[str, Field(max_length=2048), AfterValidator(_https_download_url)]
+DownloadMirrors = Annotated[
+    tuple[DownloadURL, ...], Field(min_length=1, max_length=8), AfterValidator(_unique_urls)
+]
+PythonMirror = Annotated[DownloadURL, AfterValidator(_python_mirror)]
+FileDigest = Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
+
+
+class BackendDownloadSources(StrictFrozenModel):
+    python: tuple[PythonMirror, ...] | None = Field(default=None, min_length=1, max_length=8)
+    wheels: dict[FileDigest, DownloadMirrors] | None = Field(default=None, min_length=1, max_length=1024)
+
+    @field_validator("python")
+    @classmethod
+    def python_mirrors_are_unique(cls, values: tuple[str, ...] | None) -> tuple[str, ...] | None:
+        return _unique_urls(values) if values is not None else None
+
+
 class BackendCapability(StrictFrozenModel):
     name: str
     reason: str = Field(min_length=1, max_length=500)
+    reason_i18n: LocalizedText | None = Field(default=None, alias="reasonI18n")
 
     @field_validator("name")
     @classmethod
@@ -205,25 +253,22 @@ class BackendCapability(StrictFrozenModel):
 class BackendModelFile(StrictFrozenModel):
     id: str
     file_name: str = Field(alias="fileName")
-    url: str = Field(max_length=2048)
+    url: DownloadURL
+    mirrors: DownloadMirrors | None = None
     sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     size_bytes: int = Field(alias="bytes", gt=0, le=16 * 1024 * 1024 * 1024)
     license: str = Field(min_length=1, max_length=200)
 
     @model_validator(mode="after")
     def fields_are_safe(self) -> BackendModelFile:
-        parsed = urlsplit(self.url)
         if (
             _MODEL_ID.fullmatch(self.id) is None
             or _SAFE_FILE_NAME.fullmatch(self.file_name) is None
             or self.file_name.endswith(".")
-            or parsed.scheme != "https"
-            or not parsed.hostname
-            or parsed.username is not None
-            or parsed.password is not None
-            or parsed.fragment
         ):
-            raise ValueError("backend model declaration is invalid")
+            raise ValueError("backend download file declaration is invalid")
+        if self.url in (self.mirrors or ()):
+            raise ValueError("a download mirror cannot repeat the primary URL")
         return self
 
 
@@ -251,6 +296,8 @@ class BackendDeclaration(StrictFrozenModel):
     platforms: tuple[str, ...] = Field(min_length=1, max_length=8)
     capabilities: tuple[BackendCapability, ...] = Field(default=(), max_length=8)
     models: tuple[BackendModelFile, ...] = Field(default=(), max_length=32)
+    artifacts: tuple[BackendModelFile, ...] | None = Field(default=None, min_length=1, max_length=32)
+    download_sources: BackendDownloadSources | None = Field(default=None, alias="downloadSources")
     variants: tuple[BackendVariant, ...] = Field(default=(), max_length=4)
     idle_timeout_seconds: int | None = Field(
         default=None,
@@ -269,8 +316,8 @@ class BackendDeclaration(StrictFrozenModel):
             raise ValueError("backend platforms are invalid")
         for label, values in (
             ("capabilities", [item.name for item in self.capabilities]),
-            ("model ids", [item.id for item in self.models]),
-            ("model file names", [item.file_name.casefold() for item in self.models]),
+            ("download file ids", [item.id for item in self.download_files]),
+            ("download file names", [item.file_name.casefold() for item in self.download_files]),
             ("variant ids", [item.id for item in self.variants]),
             ("locks", [self.lock, *(item.lock for item in self.variants)]),
         ):
@@ -280,6 +327,10 @@ class BackendDeclaration(StrictFrozenModel):
             if not set(variant.platforms) <= set(self.platforms):
                 raise ValueError("variant platforms must be backend platforms")
         return self
+
+    @property
+    def download_files(self) -> tuple[BackendModelFile, ...]:
+        return (*self.models, *(self.artifacts or ()))
 
     def referenced_files(self) -> tuple[str, ...]:
         locks = {self.lock, *(item.lock for item in self.variants)}
@@ -310,7 +361,7 @@ class WorkshopManifest(StrictFrozenModel):
     workshop_api: ApiRange = Field(alias="workshopApi")
     lumina_version: LuminaRange = Field(alias="luminaVersion")
     entrypoints: Entrypoints
-    permissions: tuple[Permission, ...] = Field(max_length=32)
+    permissions: tuple[ManifestPermission, ...] = Field(max_length=32)
     project_snapshots: WorkshopProjectSnapshots | None = Field(
         default=None, alias="projectSnapshots"
     )
@@ -339,6 +390,9 @@ class WorkshopManifest(StrictFrozenModel):
             raise ValueError("manifest contains duplicate permissions")
         if self.project_snapshots and "project.storage" not in permission_names:
             raise ValueError("project snapshots require project.storage permission")
+        if any(item.reason_i18n is not None for item in self.permissions):
+            if compare_semver(self.workshop_api.minimum, DOWNLOAD_SOURCES_API_VERSION) < 0:
+                raise ValueError("localized permission reasons require workshopApi.min >= 1.2.0")
         return self
 
 
@@ -354,7 +408,7 @@ class WorkshopManifestV2(StrictFrozenModel):
     workshop_api: ApiRange = Field(alias="workshopApi")
     lumina_version: LuminaRange = Field(alias="luminaVersion")
     entrypoints: Entrypoints
-    permissions: tuple[Permission, ...] = Field(max_length=32)
+    permissions: tuple[ManifestPermission, ...] = Field(max_length=32)
     # The host accepts project snapshots on v1 and v2 manifests alike.
     project_snapshots: WorkshopProjectSnapshots | None = Field(
         default=None, alias="projectSnapshots"
@@ -371,10 +425,16 @@ class WorkshopManifestV2(StrictFrozenModel):
             raise ValueError("manifest contains duplicate permissions")
         if self.project_snapshots and "project.storage" not in names:
             raise ValueError("project snapshots require project.storage permission")
-        if compare_semver(self.workshop_api.minimum, BACKEND_API_VERSION) < 0:
-            raise ValueError(
-                f"backend modules require workshopApi.min >= {BACKEND_API_VERSION}"
-            )
+        backend = self.backend
+        has_new_fields = (
+            backend.download_sources is not None
+            or backend.artifacts is not None
+            or any(item.mirrors is not None for item in backend.models)
+            or any(item.reason_i18n is not None for item in (*self.permissions, *backend.capabilities))
+        )
+        minimum = DOWNLOAD_SOURCES_API_VERSION if has_new_fields else BACKEND_API_VERSION
+        if compare_semver(self.workshop_api.minimum, minimum) < 0:
+            raise ValueError(f"backend modules require workshopApi.min >= {minimum}")
         return self
 
 

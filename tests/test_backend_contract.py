@@ -26,6 +26,7 @@ from workshop_registry.models import (
     WorkshopManifestV2,
 )
 from workshop_registry.package import PackageInspectionError, inspect_package
+from workshop_registry.source_update import candidate_from_release
 
 GENERATED_AT = "2026-11-04T00:00:00Z"
 WHEEL_URL = "https://files.pythonhosted.org/packages/aa/demo-1.0.0-py3-none-any.whl"
@@ -105,6 +106,46 @@ def test_backend_packages_reject_native_code_insecure_locks_and_missing_files(
 ) -> None:
     with pytest.raises(PackageInspectionError):
         inspect_package(write_package(tmp_path, backend_manifest(), files))
+
+
+def test_download_candidates_and_localized_manifest_fields(tmp_path: Path) -> None:
+    manifest = backend_manifest()
+    manifest["workshopApi"]["min"] = "1.2.0"
+    localized = {"zh-CN": "保存文档", "en-US": "Save the document."}
+    manifest["permissions"] = [
+        {"name": "project.storage", "reason": "Save the document.", "reasonI18n": localized}
+    ]
+    manifest["backend"]["capabilities"][0]["reasonI18n"] = localized
+    manifest["backend"]["downloadSources"] = {
+        "python": ["https://cdn.example/python/releases/download"],
+        "wheels": {"c" * 64: ["https://cdn.example/demo-1.0.0-py3-none-any.whl"]},
+    }
+    manifest["backend"]["artifacts"] = [{
+        "id": "labels", "fileName": "labels.json", "url": "https://example.com/labels.json",
+        "mirrors": ["https://cdn.example/labels.json"],
+        "sha256": "a" * 64, "bytes": 12, "license": "CC0-1.0",
+    }]
+    files = {"backend/main.py": MAIN, "backend/pylock.toml": LOCK.encode()}
+    inspected = inspect_package(write_package(tmp_path, manifest, files))
+    candidate = candidate_from_release(SimpleNamespace(
+        package=inspected, tag="v1.0.0", asset_name="fixture.lumina-workshop",
+        asset_bytes=123, sha256="a" * 64, manifest_sha256="b" * 64,
+    ))
+    assert candidate["permissions"] == [{"name": "project.storage", "reason": "Save the document."}]
+
+    manifest["workshopApi"]["min"] = "1.1.0"
+    with pytest.raises(ValidationError):
+        WorkshopManifestV2.model_validate(manifest)
+    manifest["workshopApi"]["min"] = "1.2.0"
+
+    manifest["backend"]["downloadSources"]["wheels"]["d" * 64] = [
+        "https://cdn.example/other-1.0.0-py3-none-any.whl"
+    ]
+    with pytest.raises(PackageInspectionError, match="wheel"):
+        inspect_package(write_package(tmp_path, manifest, files))
+    manifest["backend"]["artifacts"][0]["mirrors"] = ["http://cdn.example/labels.json"]
+    with pytest.raises(ValidationError):
+        WorkshopManifestV2.model_validate(manifest)
 
 
 def test_backend_manifest_requires_backend_api() -> None:
