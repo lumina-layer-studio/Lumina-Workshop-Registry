@@ -7,7 +7,7 @@ import os
 import tempfile
 from pathlib import Path
 
-from .models import ModuleSource
+from .models import ModuleSource, catalog_permissions
 from .release import InspectedRelease
 
 
@@ -31,8 +31,8 @@ def candidate_from_release(release: InspectedRelease) -> dict:
             mode="json",
         ),
         "permissions": [
-            permission.model_dump(include={"name", "reason"}, by_alias=True, mode="json")
-            for permission in manifest.permissions
+            permission.model_dump(by_alias=True, mode="json")
+            for permission in catalog_permissions(manifest.permissions)
         ],
         "state": "active",
         "revocation": None,

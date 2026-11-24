@@ -11,9 +11,11 @@ from zipfile import ZipFile
 import pytest
 from pydantic import ValidationError
 
+from scripts import validate_new_releases
 from scripts.build_pages import build_pages
 from scripts.build_registry import (
     RegistryBuildError,
+    _assert_review_matches_release,
     build_registry,
     build_registry_outputs,
 )
@@ -127,10 +129,12 @@ def test_download_candidates_and_localized_manifest_fields(tmp_path: Path) -> No
     }]
     files = {"backend/main.py": MAIN, "backend/pylock.toml": LOCK.encode()}
     inspected = inspect_package(write_package(tmp_path, manifest, files))
-    candidate = candidate_from_release(SimpleNamespace(
-        package=inspected, tag="v1.0.0", asset_name="fixture.lumina-workshop",
-        asset_bytes=123, sha256="a" * 64, manifest_sha256="b" * 64,
-    ))
+    release = SimpleNamespace(
+        package=inspected, tag="v1.0.0", asset_name=inspected.archive_path.name,
+        asset_bytes=inspected.archive_path.stat().st_size,
+        sha256=inspected.archive_sha256, manifest_sha256=inspected.manifest_sha256,
+    )
+    candidate = candidate_from_release(release)
     assert candidate["permissions"] == [{"name": "project.storage", "reason": "Save the document."}]
 
     manifest["workshopApi"]["min"] = "1.1.0"
@@ -145,6 +149,49 @@ def test_download_candidates_and_localized_manifest_fields(tmp_path: Path) -> No
         inspect_package(write_package(tmp_path, manifest, files))
     manifest["backend"]["artifacts"][0]["mirrors"] = ["http://cdn.example/labels.json"]
     with pytest.raises(ValidationError):
+        WorkshopManifestV2.model_validate(manifest)
+
+
+@pytest.mark.parametrize("localized", [False, True])
+def test_release_checks_use_the_signed_permission_projection(
+    tmp_path: Path, valid_source: dict, monkeypatch: pytest.MonkeyPatch, localized: bool,
+) -> None:
+    manifest = backend_manifest()
+    permission = {"name": "project.storage", "reason": "Save fixture projects."}
+    if localized:
+        manifest["workshopApi"]["min"] = "1.2.0"
+        permission["reasonI18n"] = {"zh-CN": "保存测试工程", "en-US": "Save fixture projects."}
+    manifest["permissions"] = [permission]
+    path = write_package(
+        tmp_path, manifest, {"backend/main.py": MAIN, "backend/pylock.toml": LOCK.encode()}
+    )
+    inspected = inspect_package(path)
+    release = SimpleNamespace(
+        package=inspected, tag="v1.0.0", asset_name=path.name,
+        asset_bytes=path.stat().st_size,
+        sha256=inspected.archive_sha256, manifest_sha256=inspected.manifest_sha256,
+    )
+    source = ModuleSource.model_validate({
+        **valid_source, "moduleId": manifest["id"], "publisher": manifest["publisher"],
+        "versions": [candidate_from_release(release)],
+    })
+    reviewed = source.versions[0]
+    monkeypatch.setattr(validate_new_releases, "inspect_release", lambda **_kwargs: release)
+    _assert_review_matches_release(source, reviewed, release)
+    validate_new_releases._assert_exact(source, reviewed)
+
+    modified_reason = reviewed.permissions[0].model_copy(update={"reason": "Different reason."})
+    invalid_review = reviewed.model_copy(update={"permissions": (modified_reason,)})
+    with pytest.raises(RegistryBuildError):
+        _assert_review_matches_release(source, invalid_review, release)
+    with pytest.raises(ValueError, match="does not match"):
+        validate_new_releases._assert_exact(source, invalid_review)
+
+
+def test_explicit_new_null_fields_still_require_the_new_api() -> None:
+    manifest = backend_manifest()
+    manifest["backend"]["downloadSources"] = None
+    with pytest.raises(ValidationError, match=r">= 1.2.0"):
         WorkshopManifestV2.model_validate(manifest)
 
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 from datetime import datetime
 from pathlib import Path
 from typing import Annotated, Literal
@@ -161,6 +162,11 @@ class Permission(StrictFrozenModel):
 class ManifestPermission(Permission):
     # Registry v1 records retain the plain default reason.
     reason_i18n: LocalizedText | None = Field(default=None, alias="reasonI18n")
+
+
+def catalog_permissions(permissions: Iterable[Permission]) -> tuple[Permission, ...]:
+    """Project manifest permissions into the unchanged signed v1 format."""
+    return tuple(Permission(name=item.name, reason=item.reason) for item in permissions)
 
 
 class Entrypoints(StrictFrozenModel):
@@ -390,7 +396,7 @@ class WorkshopManifest(StrictFrozenModel):
             raise ValueError("manifest contains duplicate permissions")
         if self.project_snapshots and "project.storage" not in permission_names:
             raise ValueError("project snapshots require project.storage permission")
-        if any(item.reason_i18n is not None for item in self.permissions):
+        if any("reason_i18n" in item.model_fields_set for item in self.permissions):
             if compare_semver(self.workshop_api.minimum, DOWNLOAD_SOURCES_API_VERSION) < 0:
                 raise ValueError("localized permission reasons require workshopApi.min >= 1.2.0")
         return self
@@ -427,10 +433,9 @@ class WorkshopManifestV2(StrictFrozenModel):
             raise ValueError("project snapshots require project.storage permission")
         backend = self.backend
         has_new_fields = (
-            backend.download_sources is not None
-            or backend.artifacts is not None
-            or any(item.mirrors is not None for item in backend.models)
-            or any(item.reason_i18n is not None for item in (*self.permissions, *backend.capabilities))
+            bool({"download_sources", "artifacts"} & backend.model_fields_set)
+            or any("mirrors" in item.model_fields_set for item in backend.models)
+            or any("reason_i18n" in item.model_fields_set for item in (*self.permissions, *backend.capabilities))
         )
         minimum = DOWNLOAD_SOURCES_API_VERSION if has_new_fields else BACKEND_API_VERSION
         if compare_semver(self.workshop_api.minimum, minimum) < 0:
