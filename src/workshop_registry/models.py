@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from collections.abc import Iterable
 from datetime import datetime
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from typing import Annotated, Literal
 from urllib.parse import urlsplit
 
@@ -329,6 +329,10 @@ class BackendDeclaration(StrictFrozenModel):
         ):
             if len(values) != len(set(values)):
                 raise ValueError(f"backend {label} must be unique")
+        if "windows-x86_64" in self.platforms and any(
+            PureWindowsPath(item.file_name).is_reserved() for item in self.download_files
+        ):
+            raise ValueError("download file name is reserved on Windows")
         for variant in self.variants:
             if not set(variant.platforms) <= set(self.platforms):
                 raise ValueError("variant platforms must be backend platforms")

@@ -195,6 +195,19 @@ def test_explicit_new_null_fields_still_require_the_new_api() -> None:
         WorkshopManifestV2.model_validate(manifest)
 
 
+def test_windows_artifact_disallows_reserved_file_names() -> None:
+    manifest = backend_manifest()
+    manifest["workshopApi"]["min"] = "1.2.0"
+    manifest["backend"]["artifacts"] = [{
+        "id": "labels", "fileName": "aux.json", "url": "https://example.com/labels.json",
+        "sha256": "a" * 64, "bytes": 12, "license": "CC0-1.0",
+    }]
+    with pytest.raises(ValidationError, match="reserved on Windows"):
+        WorkshopManifestV2.model_validate(manifest)
+    manifest["backend"]["platforms"] = ["linux-x86_64"]
+    assert WorkshopManifestV2.model_validate(manifest).backend.artifacts[0].file_name == "aux.json"
+
+
 def test_backend_manifest_requires_backend_api() -> None:
     manifest = backend_manifest()
     manifest["workshopApi"] = {"min": "1.0.0", "maxExclusive": "2.0.0"}
