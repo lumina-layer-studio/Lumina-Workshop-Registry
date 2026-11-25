@@ -53,8 +53,8 @@ def build_pages(
     if (reviews is None) != (reviews_signature is None):
         raise ValueError("reviews and reviews signature must be published together")
 
-    if output.is_symlink():
-        raise ValueError("Pages output must not be a symlink")
+    if output.is_symlink() or output.is_junction():
+        raise ValueError("Pages output must not be a symlink or junction")
     if output.exists():
         if not output.is_dir():
             raise ValueError("Pages output must be a directory")
