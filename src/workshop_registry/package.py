@@ -342,10 +342,14 @@ def _validate_backend_files(
             )
     digests: set[str] = set()
     for lock in (declaration.lock, *(variant.lock for variant in declaration.variants)):
-        digests.update(_validate_backend_lock(_read_member(package, members_by_name[lock])))
+        digests.update(
+            _validate_backend_lock(_read_member(package, members_by_name[lock]))
+        )
     sources = declaration.download_sources
     if sources is not None and set(sources.wheels or ()) - digests:
-        raise PackageInspectionError("a wheel mirror references a SHA-256 missing from the backend locks")
+        raise PackageInspectionError(
+            "a wheel mirror references a SHA-256 missing from the backend locks"
+        )
 
 
 def _validate_specific_declared_limits(

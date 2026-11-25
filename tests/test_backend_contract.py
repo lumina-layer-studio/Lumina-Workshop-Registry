@@ -115,7 +115,11 @@ def test_download_candidates_and_localized_manifest_fields(tmp_path: Path) -> No
     manifest["workshopApi"]["min"] = "1.2.0"
     localized = {"zh-CN": "保存文档", "en-US": "Save the document."}
     manifest["permissions"] = [
-        {"name": "project.storage", "reason": "Save the document.", "reasonI18n": localized}
+        {
+            "name": "project.storage",
+            "reason": "Save the document.",
+            "reasonI18n": localized,
+        }
     ]
     manifest["backend"]["capabilities"][0]["reasonI18n"] = localized
     manifest["backend"]["downloadSources"] = {
@@ -135,7 +139,9 @@ def test_download_candidates_and_localized_manifest_fields(tmp_path: Path) -> No
         sha256=inspected.archive_sha256, manifest_sha256=inspected.manifest_sha256,
     )
     candidate = candidate_from_release(release)
-    assert candidate["permissions"] == [{"name": "project.storage", "reason": "Save the document."}]
+    assert candidate["permissions"] == [
+        {"name": "project.storage", "reason": "Save the document."}
+    ]
 
     manifest["workshopApi"]["min"] = "1.1.0"
     with pytest.raises(ValidationError):
@@ -154,16 +160,24 @@ def test_download_candidates_and_localized_manifest_fields(tmp_path: Path) -> No
 
 @pytest.mark.parametrize("localized", [False, True])
 def test_release_checks_use_the_signed_permission_projection(
-    tmp_path: Path, valid_source: dict, monkeypatch: pytest.MonkeyPatch, localized: bool,
+    tmp_path: Path,
+    valid_source: dict,
+    monkeypatch: pytest.MonkeyPatch,
+    localized: bool,
 ) -> None:
     manifest = backend_manifest()
     permission = {"name": "project.storage", "reason": "Save fixture projects."}
     if localized:
         manifest["workshopApi"]["min"] = "1.2.0"
-        permission["reasonI18n"] = {"zh-CN": "保存测试工程", "en-US": "Save fixture projects."}
+        permission["reasonI18n"] = {
+            "zh-CN": "保存测试工程",
+            "en-US": "Save fixture projects.",
+        }
     manifest["permissions"] = [permission]
     path = write_package(
-        tmp_path, manifest, {"backend/main.py": MAIN, "backend/pylock.toml": LOCK.encode()}
+        tmp_path,
+        manifest,
+        {"backend/main.py": MAIN, "backend/pylock.toml": LOCK.encode()},
     )
     inspected = inspect_package(path)
     release = SimpleNamespace(
@@ -176,11 +190,15 @@ def test_release_checks_use_the_signed_permission_projection(
         "versions": [candidate_from_release(release)],
     })
     reviewed = source.versions[0]
-    monkeypatch.setattr(validate_new_releases, "inspect_release", lambda **_kwargs: release)
+    monkeypatch.setattr(
+        validate_new_releases, "inspect_release", lambda **_kwargs: release
+    )
     _assert_review_matches_release(source, reviewed, release)
     validate_new_releases._assert_exact(source, reviewed)
 
-    modified_reason = reviewed.permissions[0].model_copy(update={"reason": "Different reason."})
+    modified_reason = reviewed.permissions[0].model_copy(
+        update={"reason": "Different reason."}
+    )
     invalid_review = reviewed.model_copy(update={"permissions": (modified_reason,)})
     with pytest.raises(RegistryBuildError):
         _assert_review_matches_release(source, invalid_review, release)
@@ -205,7 +223,8 @@ def test_windows_artifact_disallows_reserved_file_names() -> None:
     with pytest.raises(ValidationError, match="reserved on Windows"):
         WorkshopManifestV2.model_validate(manifest)
     manifest["backend"]["platforms"] = ["linux-x86_64"]
-    assert WorkshopManifestV2.model_validate(manifest).backend.artifacts[0].file_name == "aux.json"
+    validated = WorkshopManifestV2.model_validate(manifest)
+    assert validated.backend.artifacts[0].file_name == "aux.json"
 
 
 def test_backend_manifest_requires_backend_api() -> None:

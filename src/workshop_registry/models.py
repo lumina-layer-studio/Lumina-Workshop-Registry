@@ -225,21 +225,31 @@ def _python_mirror(value: str) -> str:
     return value.rstrip("/")
 
 
-DownloadURL = Annotated[str, Field(max_length=2048), AfterValidator(_https_download_url)]
+DownloadURL = Annotated[
+    str, Field(max_length=2048), AfterValidator(_https_download_url)
+]
 DownloadMirrors = Annotated[
-    tuple[DownloadURL, ...], Field(min_length=1, max_length=8), AfterValidator(_unique_urls)
+    tuple[DownloadURL, ...],
+    Field(min_length=1, max_length=8),
+    AfterValidator(_unique_urls),
 ]
 PythonMirror = Annotated[DownloadURL, AfterValidator(_python_mirror)]
 FileDigest = Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
 
 
 class BackendDownloadSources(StrictFrozenModel):
-    python: tuple[PythonMirror, ...] | None = Field(default=None, min_length=1, max_length=8)
-    wheels: dict[FileDigest, DownloadMirrors] | None = Field(default=None, min_length=1, max_length=1024)
+    python: tuple[PythonMirror, ...] | None = Field(
+        default=None, min_length=1, max_length=8
+    )
+    wheels: dict[FileDigest, DownloadMirrors] | None = Field(
+        default=None, min_length=1, max_length=1024
+    )
 
     @field_validator("python")
     @classmethod
-    def python_mirrors_are_unique(cls, values: tuple[str, ...] | None) -> tuple[str, ...] | None:
+    def python_mirrors_are_unique(
+        cls, values: tuple[str, ...] | None
+    ) -> tuple[str, ...] | None:
         return _unique_urls(values) if values is not None else None
 
 
@@ -302,8 +312,12 @@ class BackendDeclaration(StrictFrozenModel):
     platforms: tuple[str, ...] = Field(min_length=1, max_length=8)
     capabilities: tuple[BackendCapability, ...] = Field(default=(), max_length=8)
     models: tuple[BackendModelFile, ...] = Field(default=(), max_length=32)
-    artifacts: tuple[BackendModelFile, ...] | None = Field(default=None, min_length=1, max_length=32)
-    download_sources: BackendDownloadSources | None = Field(default=None, alias="downloadSources")
+    artifacts: tuple[BackendModelFile, ...] | None = Field(
+        default=None, min_length=1, max_length=32
+    )
+    download_sources: BackendDownloadSources | None = Field(
+        default=None, alias="downloadSources"
+    )
     variants: tuple[BackendVariant, ...] = Field(default=(), max_length=4)
     idle_timeout_seconds: int | None = Field(
         default=None,
@@ -323,14 +337,18 @@ class BackendDeclaration(StrictFrozenModel):
         for label, values in (
             ("capabilities", [item.name for item in self.capabilities]),
             ("download file ids", [item.id for item in self.download_files]),
-            ("download file names", [item.file_name.casefold() for item in self.download_files]),
+            (
+                "download file names",
+                [item.file_name.casefold() for item in self.download_files],
+            ),
             ("variant ids", [item.id for item in self.variants]),
             ("locks", [self.lock, *(item.lock for item in self.variants)]),
         ):
             if len(values) != len(set(values)):
                 raise ValueError(f"backend {label} must be unique")
         if "windows-x86_64" in self.platforms and any(
-            PureWindowsPath(item.file_name).is_reserved() for item in self.download_files
+            PureWindowsPath(item.file_name).is_reserved()
+            for item in self.download_files
         ):
             raise ValueError("download file name is reserved on Windows")
         for variant in self.variants:
@@ -400,9 +418,15 @@ class WorkshopManifest(StrictFrozenModel):
             raise ValueError("manifest contains duplicate permissions")
         if self.project_snapshots and "project.storage" not in permission_names:
             raise ValueError("project snapshots require project.storage permission")
-        if any("reason_i18n" in item.model_fields_set for item in self.permissions):
-            if compare_semver(self.workshop_api.minimum, DOWNLOAD_SOURCES_API_VERSION) < 0:
-                raise ValueError("localized permission reasons require workshopApi.min >= 1.2.0")
+        if (
+            any("reason_i18n" in item.model_fields_set for item in self.permissions)
+            and compare_semver(
+                self.workshop_api.minimum, DOWNLOAD_SOURCES_API_VERSION
+            ) < 0
+        ):
+            raise ValueError(
+                "localized permission reasons require workshopApi.min >= 1.2.0"
+            )
         return self
 
 
@@ -439,9 +463,14 @@ class WorkshopManifestV2(StrictFrozenModel):
         has_new_fields = (
             bool({"download_sources", "artifacts"} & backend.model_fields_set)
             or any("mirrors" in item.model_fields_set for item in backend.models)
-            or any("reason_i18n" in item.model_fields_set for item in (*self.permissions, *backend.capabilities))
+            or any(
+                "reason_i18n" in item.model_fields_set
+                for item in (*self.permissions, *backend.capabilities)
+            )
         )
-        minimum = DOWNLOAD_SOURCES_API_VERSION if has_new_fields else BACKEND_API_VERSION
+        minimum = (
+            DOWNLOAD_SOURCES_API_VERSION if has_new_fields else BACKEND_API_VERSION
+        )
         if compare_semver(self.workshop_api.minimum, minimum) < 0:
             raise ValueError(f"backend modules require workshopApi.min >= {minimum}")
         return self
