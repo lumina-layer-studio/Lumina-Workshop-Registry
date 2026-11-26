@@ -256,7 +256,7 @@ def _validate_package_file_set(
     return sorted(gallery_names), sorted(backend_names)
 
 
-def _validate_backend_lock(value: bytes) -> None:
+def _validate_backend_lock(value: bytes) -> set[str]:
     """Wheels-only PEP 751 lock with HTTPS URLs and SHA-256 per wheel."""
 
     try:
@@ -271,6 +271,7 @@ def _validate_backend_lock(value: bytes) -> None:
         raise PackageInspectionError(
             "invalid backend lock: packages must be a bounded array"
         )
+    digests: set[str] = set()
     for package in packages:
         if not isinstance(package, dict) or any(
             key in package for key in ("sdist", "vcs", "directory", "archive")
@@ -303,6 +304,8 @@ def _validate_backend_lock(value: bytes) -> None:
                 raise PackageInspectionError(
                     "invalid backend lock: wheels need HTTPS URLs and SHA-256"
                 )
+            digests.add(hashes["sha256"])
+    return digests
 
 
 def _validate_backend_files(
@@ -337,8 +340,16 @@ def _validate_backend_files(
             raise PackageInspectionError(
                 f"backend declaration references a missing file: {required!r}"
             )
+    digests: set[str] = set()
     for lock in (declaration.lock, *(variant.lock for variant in declaration.variants)):
-        _validate_backend_lock(_read_member(package, members_by_name[lock]))
+        digests.update(
+            _validate_backend_lock(_read_member(package, members_by_name[lock]))
+        )
+    sources = declaration.download_sources
+    if sources is not None and set(sources.wheels or ()) - digests:
+        raise PackageInspectionError(
+            "a wheel mirror references a SHA-256 missing from the backend locks"
+        )
 
 
 def _validate_specific_declared_limits(

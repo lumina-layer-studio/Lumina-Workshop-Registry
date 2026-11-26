@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import pytest
@@ -51,12 +52,22 @@ def test_build_pages_refuses_unknown_existing_content(
     assert important.read_text(encoding="utf-8") == "user data"
 
 
-def test_build_pages_refuses_symlink_output(tmp_path: Path) -> None:
+def test_build_pages_refuses_linked_output(tmp_path: Path) -> None:
     index, signature = write_inputs(tmp_path)
     target = tmp_path / "target"
     target.mkdir()
+    original = target / "index.html"
+    original.write_text("keep", encoding="utf-8")
     output = tmp_path / "pages"
-    output.symlink_to(target, target_is_directory=True)
+    if sys.platform == "win32":
+        import _winapi
 
-    with pytest.raises(ValueError, match="symlink"):
+        _winapi.CreateJunction(str(target), str(output))
+    else:
+        output.symlink_to(target, target_is_directory=True)
+
+    with pytest.raises(ValueError, match="symlink or junction"):
         build_pages(index=index, signature=signature, output=output)
+
+    assert list(target.iterdir()) == [original]
+    assert original.read_text(encoding="utf-8") == "keep"
