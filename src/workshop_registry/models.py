@@ -37,11 +37,13 @@ ALLOWED_PERMISSION_NAMES = frozenset(
         "project.storage",
         "color-library.read",
         "handoff.image",
+        "material.import",
     }
 )
 # Manifest v2 backend declarations; must stay identical to Lumina's host.
 BACKEND_API_VERSION = "1.1.0"
 DOWNLOAD_SOURCES_API_VERSION = "1.2.0"
+MATERIAL_IMPORT_API_VERSION = "1.2.0"
 BACKEND_PYTHON_VERSIONS = frozenset({"3.12"})
 BACKEND_PLATFORMS = frozenset({"windows-x86_64", "linux-x86_64", "macos-arm64"})
 BACKEND_CAPABILITY_NAMES = frozenset({"network", "subprocess", "external-files"})
@@ -167,6 +169,13 @@ class ManifestPermission(Permission):
 def catalog_permissions(permissions: Iterable[Permission]) -> tuple[Permission, ...]:
     """Project manifest permissions into the unchanged signed v1 format."""
     return tuple(Permission(name=item.name, reason=item.reason) for item in permissions)
+
+
+def _validate_permission_api(permissions: Iterable[Permission], minimum: str) -> None:
+    if any(item.name == "material.import" for item in permissions) and compare_semver(
+        minimum, MATERIAL_IMPORT_API_VERSION
+    ) < 0:
+        raise ValueError("material.import requires workshopApi.min >= 1.2.0")
 
 
 class Entrypoints(StrictFrozenModel):
@@ -411,6 +420,7 @@ class WorkshopManifest(StrictFrozenModel):
 
     @model_validator(mode="after")
     def permissions_are_unique(self) -> WorkshopManifest:
+        _validate_permission_api(self.permissions, self.workshop_api.minimum)
         permission_names = [
             permission.name for permission in self.permissions
         ]
@@ -454,6 +464,7 @@ class WorkshopManifestV2(StrictFrozenModel):
         _validate_module_id(self.id)
         validate_semver(self.version)
         _validate_publisher(self.publisher)
+        _validate_permission_api(self.permissions, self.workshop_api.minimum)
         names = [permission.name for permission in self.permissions]
         if len(names) != len(set(names)):
             raise ValueError("manifest contains duplicate permissions")
@@ -528,6 +539,7 @@ class VersionBase(StrictFrozenModel):
 
     @model_validator(mode="after")
     def identity_and_revocation_are_consistent(self) -> VersionBase:
+        _validate_permission_api(self.permissions, self.workshop_api.minimum)
         if self.release_tag != f"v{self.version}":
             raise ValueError("releaseTag must equal v<version>")
         if self.state == "blocked" and self.revocation is None:
