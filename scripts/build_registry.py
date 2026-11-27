@@ -16,6 +16,7 @@ from workshop_registry.models import (
     RegistryIndex,
     ReviewIndex,
     SourceVersion,
+    catalog_permissions,
     semver_sort_key,
 )
 from workshop_registry.release import InspectedRelease, inspect_release
@@ -87,7 +88,7 @@ def _assert_review_matches_release(
         and manifest.publisher == source.publisher
         and manifest.workshop_api == reviewed.workshop_api
         and manifest.lumina_version == reviewed.lumina_version
-        and manifest.permissions == reviewed.permissions
+        and catalog_permissions(manifest.permissions) == reviewed.permissions
     )
     if not exact_values_match:
         raise RegistryBuildError(

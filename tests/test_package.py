@@ -171,9 +171,12 @@ def test_archive_paths_fail_closed(
     name: str,
     message: str,
 ) -> None:
+    entry = ZipInfo(name)
+    # ZipInfo normalizes backslashes on Windows before writing the archive.
+    entry.filename = name
     archive = write_raw_zip(
         tmp_path,
-        [("ui/index.html", b"ok"), (name, b"x")],
+        [("ui/index.html", b"ok"), (entry, b"x")],
     )
 
     with pytest.raises(PackageInspectionError, match=message):

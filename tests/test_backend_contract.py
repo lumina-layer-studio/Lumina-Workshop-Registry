@@ -11,9 +11,11 @@ from zipfile import ZipFile
 import pytest
 from pydantic import ValidationError
 
+from scripts import validate_new_releases
 from scripts.build_pages import build_pages
 from scripts.build_registry import (
     RegistryBuildError,
+    _assert_review_matches_release,
     build_registry,
     build_registry_outputs,
 )
@@ -26,6 +28,7 @@ from workshop_registry.models import (
     WorkshopManifestV2,
 )
 from workshop_registry.package import PackageInspectionError, inspect_package
+from workshop_registry.source_update import candidate_from_release
 
 GENERATED_AT = "2026-11-04T00:00:00Z"
 WHEEL_URL = "https://files.pythonhosted.org/packages/aa/demo-1.0.0-py3-none-any.whl"
@@ -105,6 +108,123 @@ def test_backend_packages_reject_native_code_insecure_locks_and_missing_files(
 ) -> None:
     with pytest.raises(PackageInspectionError):
         inspect_package(write_package(tmp_path, backend_manifest(), files))
+
+
+def test_download_candidates_and_localized_manifest_fields(tmp_path: Path) -> None:
+    manifest = backend_manifest()
+    manifest["workshopApi"]["min"] = "1.2.0"
+    localized = {"zh-CN": "保存文档", "en-US": "Save the document."}
+    manifest["permissions"] = [
+        {
+            "name": "project.storage",
+            "reason": "Save the document.",
+            "reasonI18n": localized,
+        }
+    ]
+    manifest["backend"]["capabilities"][0]["reasonI18n"] = localized
+    manifest["backend"]["downloadSources"] = {
+        "python": ["https://cdn.example/python/releases/download"],
+        "wheels": {"c" * 64: ["https://cdn.example/demo-1.0.0-py3-none-any.whl"]},
+    }
+    manifest["backend"]["artifacts"] = [{
+        "id": "labels", "fileName": "labels.json", "url": "https://example.com/labels.json",
+        "mirrors": ["https://cdn.example/labels.json"],
+        "sha256": "a" * 64, "bytes": 12, "license": "CC0-1.0",
+    }]
+    files = {"backend/main.py": MAIN, "backend/pylock.toml": LOCK.encode()}
+    inspected = inspect_package(write_package(tmp_path, manifest, files))
+    release = SimpleNamespace(
+        package=inspected, tag="v1.0.0", asset_name=inspected.archive_path.name,
+        asset_bytes=inspected.archive_path.stat().st_size,
+        sha256=inspected.archive_sha256, manifest_sha256=inspected.manifest_sha256,
+    )
+    candidate = candidate_from_release(release)
+    assert candidate["permissions"] == [
+        {"name": "project.storage", "reason": "Save the document."}
+    ]
+
+    manifest["workshopApi"]["min"] = "1.1.0"
+    with pytest.raises(ValidationError):
+        WorkshopManifestV2.model_validate(manifest)
+    manifest["workshopApi"]["min"] = "1.2.0"
+
+    manifest["backend"]["downloadSources"]["wheels"]["d" * 64] = [
+        "https://cdn.example/other-1.0.0-py3-none-any.whl"
+    ]
+    with pytest.raises(PackageInspectionError, match="wheel"):
+        inspect_package(write_package(tmp_path, manifest, files))
+    manifest["backend"]["artifacts"][0]["mirrors"] = ["http://cdn.example/labels.json"]
+    with pytest.raises(ValidationError):
+        WorkshopManifestV2.model_validate(manifest)
+
+
+@pytest.mark.parametrize("localized", [False, True])
+def test_release_checks_use_the_signed_permission_projection(
+    tmp_path: Path,
+    valid_source: dict,
+    monkeypatch: pytest.MonkeyPatch,
+    localized: bool,
+) -> None:
+    manifest = backend_manifest()
+    permission = {"name": "project.storage", "reason": "Save fixture projects."}
+    if localized:
+        manifest["workshopApi"]["min"] = "1.2.0"
+        permission["reasonI18n"] = {
+            "zh-CN": "保存测试工程",
+            "en-US": "Save fixture projects.",
+        }
+    manifest["permissions"] = [permission]
+    path = write_package(
+        tmp_path,
+        manifest,
+        {"backend/main.py": MAIN, "backend/pylock.toml": LOCK.encode()},
+    )
+    inspected = inspect_package(path)
+    release = SimpleNamespace(
+        package=inspected, tag="v1.0.0", asset_name=path.name,
+        asset_bytes=path.stat().st_size,
+        sha256=inspected.archive_sha256, manifest_sha256=inspected.manifest_sha256,
+    )
+    source = ModuleSource.model_validate({
+        **valid_source, "moduleId": manifest["id"], "publisher": manifest["publisher"],
+        "versions": [candidate_from_release(release)],
+    })
+    reviewed = source.versions[0]
+    monkeypatch.setattr(
+        validate_new_releases, "inspect_release", lambda **_kwargs: release
+    )
+    _assert_review_matches_release(source, reviewed, release)
+    validate_new_releases._assert_exact(source, reviewed)
+
+    modified_reason = reviewed.permissions[0].model_copy(
+        update={"reason": "Different reason."}
+    )
+    invalid_review = reviewed.model_copy(update={"permissions": (modified_reason,)})
+    with pytest.raises(RegistryBuildError):
+        _assert_review_matches_release(source, invalid_review, release)
+    with pytest.raises(ValueError, match="does not match"):
+        validate_new_releases._assert_exact(source, invalid_review)
+
+
+def test_explicit_new_null_fields_still_require_the_new_api() -> None:
+    manifest = backend_manifest()
+    manifest["backend"]["downloadSources"] = None
+    with pytest.raises(ValidationError, match=r">= 1.2.0"):
+        WorkshopManifestV2.model_validate(manifest)
+
+
+def test_windows_artifact_disallows_reserved_file_names() -> None:
+    manifest = backend_manifest()
+    manifest["workshopApi"]["min"] = "1.2.0"
+    manifest["backend"]["artifacts"] = [{
+        "id": "labels", "fileName": "aux.json", "url": "https://example.com/labels.json",
+        "sha256": "a" * 64, "bytes": 12, "license": "CC0-1.0",
+    }]
+    with pytest.raises(ValidationError, match="reserved on Windows"):
+        WorkshopManifestV2.model_validate(manifest)
+    manifest["backend"]["platforms"] = ["linux-x86_64"]
+    validated = WorkshopManifestV2.model_validate(manifest)
+    assert validated.backend.artifacts[0].file_name == "aux.json"
 
 
 def test_backend_manifest_requires_backend_api() -> None:

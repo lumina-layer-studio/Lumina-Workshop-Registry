@@ -10,6 +10,9 @@ set; the Registry cannot make an application trust a new key.
 ## Planned rotation
 
 1. Generate a new Ed25519 pair to explicit local paths on a trusted machine.
+   The private PEM is created with owner-only access. On Windows, the tool
+   verifies the file's access control list before writing the key. The
+   destination filesystem must support persistent access control lists.
 2. Record the public key in a reviewed Lumina release and retain the old key
    during an overlap window.
 3. Ship and verify Lumina with both trusted public keys.

@@ -126,17 +126,21 @@ def verify_detached_signature(
 
 def _write_exclusive(path: Path, payload: bytes, *, mode: int) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    descriptor = os.open(
-        path,
-        os.O_WRONLY | os.O_CREAT | os.O_EXCL,
-        mode,
-    )
+    if mode == 0o600 and os.name == "nt":
+        from ._windows_private_file import open_private_file
+
+        descriptor = open_private_file(path)
+    else:
+        descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, mode)
     try:
-        with os.fdopen(descriptor, "wb") as output:
-            output.write(payload)
-            output.flush()
-            os.fsync(output.fileno())
-    except Exception:
+        try:
+            with os.fdopen(descriptor, "wb", closefd=False) as output:
+                output.write(payload)
+                output.flush()
+                os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
+    except BaseException:
         path.unlink(missing_ok=True)
         raise
 
@@ -176,8 +180,8 @@ def generate_signing_key(
         }
     )
 
+    _write_exclusive(private_path, private_bytes, mode=0o600)
     try:
-        _write_exclusive(private_path, private_bytes, mode=0o600)
         _write_exclusive(
             public_path,
             canonical_json_bytes(
@@ -185,9 +189,8 @@ def generate_signing_key(
             ),
             mode=0o644,
         )
-    except Exception:
+    except BaseException:
         private_path.unlink(missing_ok=True)
-        public_path.unlink(missing_ok=True)
         raise
 
 

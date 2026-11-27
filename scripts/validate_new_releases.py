@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from workshop_registry.models import ModuleSource, SourceVersion
+from workshop_registry.models import ModuleSource, SourceVersion, catalog_permissions
 from workshop_registry.release import inspect_release
 
 
@@ -42,7 +42,7 @@ def _assert_exact(
         and manifest.publisher == source.publisher
         and manifest.workshop_api == reviewed.workshop_api
         and manifest.lumina_version == reviewed.lumina_version
-        and manifest.permissions == reviewed.permissions
+        and catalog_permissions(manifest.permissions) == reviewed.permissions
     ):
         raise ValueError(
             f"{source.module_id}@{reviewed.version} does not match "
