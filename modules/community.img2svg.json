@@ -37,12 +37,12 @@
       }
     },
     {
-      "assetBytes": 316342,
-      "assetName": "community.img2svg-0.1.6.lumina-workshop",
+      "assetBytes": 318564,
+      "assetName": "community.img2svg-0.1.7.lumina-workshop",
       "luminaVersion": {
         "min": "2.0.0"
       },
-      "manifestSha256": "ae18a1813ab8bc7c5d2d549e4cb585e0e7750ce6a98fe3c048b387524fcb5ab1",
+      "manifestSha256": "673a20005b856c86e2252298360ad2c48ec64dde5a6df14a4fa517635ca0ae7f",
       "permissions": [
         {
           "name": "image.pick",
@@ -57,11 +57,11 @@
           "reason": "把生成的分层 SVG 与兼容 PNG 交给 Lumina 转换器"
         }
       ],
-      "releaseTag": "v0.1.6",
+      "releaseTag": "v0.1.7",
       "revocation": null,
-      "sha256": "06ccdf1887468dd26661a2cce85f0478a3cf41dcba74536ebf2c14378fbbeaa2",
+      "sha256": "03953d9d0484bfec114558736394dc84301548964cc991a2d5acb12164ffd9ea",
       "state": "active",
-      "version": "0.1.6",
+      "version": "0.1.7",
       "workshopApi": {
         "maxExclusive": "2.0.0",
         "min": "1.1.0"
