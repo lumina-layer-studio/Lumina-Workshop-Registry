@@ -1,0 +1,40 @@
+{
+  "moduleId": "community.lumina-imtvec",
+  "official": false,
+  "publisher": "KasoluINT",
+  "repository": "https://github.com/KasoluINT/lumina-imtvec-workshop",
+  "schemaVersion": 1,
+  "versions": [
+    {
+      "assetBytes": 331609,
+      "assetName": "community.lumina-imtvec-1.1.0.lumina-workshop",
+      "luminaVersion": {
+        "min": "2.0.0"
+      },
+      "manifestSha256": "acca265438975bd4a67c47e13f38db433e41a2786170297ed4e3155673bcafcf",
+      "permissions": [
+        {
+          "name": "image.pick",
+          "reason": "由用户选择要转换的插画，读取像素后交给本地 ONNX 后端矢量化"
+        },
+        {
+          "name": "color-library.read",
+          "reason": "交接时读取当前宿主色库 ID，供 Lumina 转换器核对颜色"
+        },
+        {
+          "name": "handoff.image",
+          "reason": "把生成的双层平面矢量 SVG 与兼容 PNG 预览交给 Lumina 转换器"
+        }
+      ],
+      "releaseTag": "v1.1.0",
+      "revocation": null,
+      "sha256": "e6080e6e88bb53be7510caba6827d3aa4018d64b1cb3592dfa3013213f40678b",
+      "state": "active",
+      "version": "1.1.0",
+      "workshopApi": {
+        "maxExclusive": "2.0.0",
+        "min": "1.1.0"
+      }
+    }
+  ]
+}
